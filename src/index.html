@@ -22,7 +22,13 @@
     <!-- Meeting View -->
     <div id="view-meeting" class="view active">
       <div class="controls-bar">
-        <select id="audioSources" multiple title="Audio sources — hold Cmd/Ctrl to select multiple"></select>
+        <div class="audio-source-selector" id="audioSourceSelector">
+          <button type="button" class="audio-source-btn" id="audioSourceBtn" aria-haspopup="listbox" aria-expanded="false">
+            <span id="audioSourceLabel">System Audio</span>
+            <span class="audio-chevron" aria-hidden="true">▾</span>
+          </button>
+          <div class="audio-source-panel" id="audioSourcePanel" hidden></div>
+        </div>
         <select id="profileSelect" title="Meeting profile"></select>
         <input type="text" id="meetingTitle" placeholder="Meeting title (optional)" onblur="updateTitle()">
         <button id="btnStart" class="btn btn-primary" onclick="startMeeting()">Start</button>

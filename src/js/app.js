@@ -28,26 +28,27 @@ async function updateTitle() {
 }
 
 async function startMeeting() {
-  const list = document.getElementById('audioSources');
-  const selected = Array.from(list.selectedOptions).map(o => o.value);
-
-  if (selected.length === 0) {
-    // Show inline error in the controls bar instead of alert()
-    showAudioSourceError('Select at least one audio source');
+  const sources = getSelectedAudioSources();
+  if (sources.length === 0) {
+    // inline error without alert
+    const btn = document.getElementById('audioSourceBtn');
+    const orig = btn.style.outline;
+    btn.style.outline = '2px solid var(--danger)';
+    setTimeout(() => { btn.style.outline = orig; }, 2000);
     return;
   }
 
   const title = document.getElementById('meetingTitle').value || undefined;
   const profileName = document.getElementById('profileSelect').value || null;
 
-  const hasSystem = selected.includes('system');
-  const mics = selected.filter(v => v !== 'system');
+  const hasSystem = sources.includes('system');
+  const mics = sources.filter(v => v !== 'system');
   const micDevice = mics.length > 0 ? mics[0] : undefined;
 
   let audioSource;
-  if (hasSystem && micDevice) audioSource = 'both';
-  else if (hasSystem)         audioSource = 'system';
-  else                        audioSource = 'microphone';
+  if (hasSystem && micDevice)  audioSource = 'both';
+  else if (hasSystem)          audioSource = 'system';
+  else                         audioSource = 'microphone';
 
   try {
     const onNotes = new Channel();
@@ -65,18 +66,6 @@ async function startMeeting() {
   } catch (e) {
     alert('Failed to start: ' + e);
   }
-}
-
-function showAudioSourceError(msg) {
-  let el = document.getElementById('audioSourceError');
-  if (!el) {
-    el = document.createElement('div');
-    el.id = 'audioSourceError';
-    el.className = 'audio-source-error';
-    document.getElementById('audioSources').insertAdjacentElement('afterend', el);
-  }
-  el.textContent = msg;
-  setTimeout(() => { el.textContent = ''; }, 3000);
 }
 
 async function pauseMeeting() {
@@ -796,34 +785,104 @@ async function saveSettings() {
   } catch (e) { alert(e); }
 }
 
-// --- Meeting screen dropdowns ---
-async function populateAudioSources() {
-  const list = document.getElementById('audioSources');
-  list.innerHTML = '';
+// --- Audio Source Selector ---
 
-  // Fixed first option — always present
-  const sysOpt = document.createElement('option');
-  sysOpt.value = 'system';
-  sysOpt.textContent = 'System Audio';
-  sysOpt.selected = true; // default selection
-  list.appendChild(sysOpt);
-
-  // Mic devices from backend
-  try {
-    const devices = await invoke('list_audio_devices');
-    devices.forEach(([name, _isDefault]) => {
-      const opt = document.createElement('option');
-      opt.value = name;        // raw name — NOT esc()-encoded
-      opt.textContent = name;  // textContent handles display-safe encoding automatically
-      list.appendChild(opt);
-    });
-  } catch (e) {
-    console.error('Failed to list audio devices:', e);
-  }
-
-  // Size: show all items up to 5, scroll beyond that
-  list.size = Math.min(list.options.length, 5);
+function buildAudioItem(value, displayName) {
+  const label = document.createElement('label');
+  label.className = 'audio-source-item';
+  const cb = document.createElement('input');
+  cb.type = 'checkbox';
+  cb.value = value;
+  cb.dataset.audioSource = '';
+  cb.addEventListener('change', updateAudioSourceLabel);
+  const span = document.createElement('span');
+  span.textContent = displayName;
+  label.appendChild(cb);
+  label.appendChild(span);
+  return label;
 }
+
+async function populateAudioSources() {
+  const panel = document.getElementById('audioSourcePanel');
+  const prev = getSelectedAudioSources();
+
+  // Clear existing items
+  panel.innerHTML = '';
+
+  // System Audio — always first
+  panel.appendChild(buildAudioItem('system', 'System Audio'));
+
+  // Mic devices
+  let devices = [];
+  try {
+    devices = await invoke('list_audio_devices');
+  } catch (e) { console.error('Failed to list audio devices:', e); }
+
+  devices.forEach(([name]) => {
+    panel.appendChild(buildAudioItem(name, name));
+  });
+
+  // Restore selection or default to system audio
+  const allValues = ['system', ...devices.map(([name]) => name)];
+  const toCheck = prev.length ? prev.filter(v => allValues.includes(v)) : ['system'];
+  panel.querySelectorAll('[data-audio-source]').forEach(cb => {
+    cb.checked = toCheck.includes(cb.value);
+  });
+
+  updateAudioSourceLabel();
+}
+
+function getSelectedAudioSources() {
+  return [...document.querySelectorAll('[data-audio-source]:checked')].map(cb => cb.value);
+}
+
+function updateAudioSourceLabel() {
+  const selected = getSelectedAudioSources();
+  const labelEl = document.getElementById('audioSourceLabel');
+  if (selected.length === 0) {
+    labelEl.textContent = 'No sources';
+  } else {
+    // Build display names
+    const names = selected.map(val => {
+      if (val === 'system') return 'System Audio';
+      const cb = document.querySelector(`[data-audio-source][value="${CSS.escape(val)}"]`);
+      return cb ? cb.closest('label').querySelector('span').textContent : val;
+    });
+    if (names.length <= 2) {
+      labelEl.textContent = names.join(' + ');
+    } else {
+      labelEl.textContent = `${names[0]} +${names.length - 1} more`;
+    }
+  }
+}
+
+// Panel toggle — script loads at bottom of body so DOM is already ready; attach directly.
+(function setupAudioSourceDropdown() {
+  const btn = document.getElementById('audioSourceBtn');
+  const panel = document.getElementById('audioSourcePanel');
+  const selector = document.getElementById('audioSourceSelector');
+
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const open = btn.getAttribute('aria-expanded') === 'true';
+    btn.setAttribute('aria-expanded', String(!open));
+    panel.hidden = open;
+  });
+
+  document.addEventListener('click', (e) => {
+    if (!selector.contains(e.target)) {
+      btn.setAttribute('aria-expanded', 'false');
+      panel.hidden = true;
+    }
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      btn.setAttribute('aria-expanded', 'false');
+      panel.hidden = true;
+    }
+  });
+}());
 
 async function populateProfileSelect() {
   try {
