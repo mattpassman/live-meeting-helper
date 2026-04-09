@@ -90,6 +90,8 @@ async fn main() {
             commands::get_corrections,
             commands::remove_correction,
             commands::save_session_file,
+            commands::test_ai_connection,
+            commands::mark_setup_complete,
             #[cfg(feature = "whisper")]
             commands::download_whisper_model,
         ])

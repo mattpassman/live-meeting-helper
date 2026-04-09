@@ -235,6 +235,88 @@
     </div>
   </main>
 </div>
+<div id="wizardOverlay" class="wizard-overlay" hidden>
+  <div class="wizard-modal">
+    <div class="wizard-header">
+      <span class="wizard-step-indicator" id="wizardStepIndicator">Step 1 of 4</span>
+      <button class="wizard-skip" onclick="skipWizard()">Skip setup</button>
+    </div>
+
+    <!-- Step 1: AI Provider -->
+    <div class="wizard-step" id="wizardStep1">
+      <h2>Choose your AI provider</h2>
+      <p class="wizard-desc">Live Meeting Helper uses an AI model to generate your meeting notes. You'll need an API key.</p>
+      <div class="wizard-provider-choice">
+        <label class="wizard-provider-option">
+          <input type="radio" name="wizardProvider" value="claude" checked>
+          <div class="wizard-provider-card">
+            <span class="wizard-provider-name">Claude <span class="wizard-recommended">Recommended</span></span>
+            <span class="wizard-provider-detail">Get a key at console.anthropic.com</span>
+          </div>
+        </label>
+        <label class="wizard-provider-option">
+          <input type="radio" name="wizardProvider" value="openai">
+          <div class="wizard-provider-card">
+            <span class="wizard-provider-name">OpenAI</span>
+            <span class="wizard-provider-detail">Get a key at platform.openai.com</span>
+          </div>
+        </label>
+      </div>
+      <div class="wizard-api-input">
+        <input type="password" id="wizardApiKey" placeholder="Paste your API key here" autocomplete="off">
+        <button class="btn btn-primary" id="wizardTestBtn" onclick="wizardTestConnection()">Test connection</button>
+      </div>
+      <div id="wizardConnectionStatus" class="wizard-status"></div>
+    </div>
+
+    <!-- Step 2: Transcription -->
+    <div class="wizard-step" id="wizardStep2" hidden>
+      <h2>Choose transcription</h2>
+      <p class="wizard-desc">How should your speech be converted to text?</p>
+      <div class="wizard-provider-choice">
+        <label class="wizard-provider-option">
+          <input type="radio" name="wizardTranscription" value="aws" checked>
+          <div class="wizard-provider-card">
+            <span class="wizard-provider-name">AWS Transcribe <span class="wizard-recommended">Recommended</span></span>
+            <span class="wizard-provider-detail">Cloud-based. Requires an AWS account with Transcribe access.</span>
+          </div>
+        </label>
+        <label class="wizard-provider-option">
+          <input type="radio" name="wizardTranscription" value="whisper">
+          <div class="wizard-provider-card">
+            <span class="wizard-provider-name">Whisper (local)</span>
+            <span class="wizard-provider-detail">Runs on your device. Audio never leaves your machine. Download a model in Settings after setup.</span>
+          </div>
+        </label>
+      </div>
+      <div id="wizardAwsFields">
+        <input type="text" id="wizardAwsProfile" placeholder="AWS profile (leave blank for default)">
+        <input type="text" id="wizardAwsRegion" placeholder="AWS region (e.g. us-east-1)">
+      </div>
+    </div>
+
+    <!-- Step 3: Audio -->
+    <div class="wizard-step" id="wizardStep3" hidden>
+      <h2>Audio sources</h2>
+      <p class="wizard-desc">Choose what audio to capture during meetings. You can change this any time.</p>
+      <div id="wizardAudioList" class="wizard-audio-list">
+        <!-- populated by JS -->
+      </div>
+    </div>
+
+    <!-- Step 4: Ready -->
+    <div class="wizard-step" id="wizardStep4" hidden>
+      <h2>You're all set</h2>
+      <p class="wizard-desc">Your setup is saved. Start a meeting from the Meeting tab whenever you're ready.</p>
+      <ul class="wizard-summary" id="wizardSummary"></ul>
+    </div>
+
+    <div class="wizard-footer">
+      <button class="btn" id="wizardBackBtn" onclick="wizardBack()" hidden>Back</button>
+      <button class="btn btn-primary" id="wizardNextBtn" onclick="wizardNext()">Next</button>
+    </div>
+  </div>
+</div>
 <script src="js/app.js"></script>
 </body>
 </html>

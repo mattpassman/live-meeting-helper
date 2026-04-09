@@ -893,6 +893,161 @@ async function populateProfileSelect() {
   } catch (e) { console.error('Failed to list profiles:', e); }
 }
 
+// --- Onboarding Wizard ---
+let wizardCurrentStep = 1;
+const WIZARD_TOTAL_STEPS = 4;
+
+async function initWizard() {
+  const config = await invoke('get_config');
+  // Show wizard if setup not complete AND no API key configured
+  if (!config.setup_complete && !config.claude_api_key && !config.openai_api_key) {
+    await populateWizardAudio();
+    showWizardStep(1);
+    document.getElementById('wizardOverlay').hidden = false;
+  }
+}
+
+async function populateWizardAudio() {
+  const list = document.getElementById('wizardAudioList');
+  list.innerHTML = '';
+  // System Audio
+  list.appendChild(buildWizardAudioItem('system', 'System Audio', true));
+  try {
+    const devices = await invoke('list_audio_devices');
+    devices.forEach(([name]) => list.appendChild(buildWizardAudioItem(name, name, false)));
+  } catch(e) { /* no devices listed, system audio only */ }
+}
+
+function buildWizardAudioItem(value, label, checked) {
+  const el = document.createElement('label');
+  el.className = 'wizard-audio-item';
+  el.innerHTML = `<input type="checkbox" data-wizard-audio value="${value}" ${checked ? 'checked' : ''}><span>${esc(label)}</span>`;
+  return el;
+}
+
+function showWizardStep(step) {
+  wizardCurrentStep = step;
+  for (let i = 1; i <= WIZARD_TOTAL_STEPS; i++) {
+    const el = document.getElementById(`wizardStep${i}`);
+    if (el) el.hidden = i !== step;
+  }
+  document.getElementById('wizardStepIndicator').textContent = `Step ${step} of ${WIZARD_TOTAL_STEPS}`;
+  document.getElementById('wizardBackBtn').hidden = step === 1;
+  document.getElementById('wizardNextBtn').textContent = step === WIZARD_TOTAL_STEPS ? 'Start using the app' : 'Next';
+
+  // Show/hide AWS fields on step 2
+  if (step === 2) {
+    document.querySelectorAll('input[name="wizardTranscription"]').forEach(r =>
+      r.addEventListener('change', () => {
+        document.getElementById('wizardAwsFields').hidden = r.value !== 'aws';
+      })
+    );
+  }
+
+  // Build summary on step 4
+  if (step === 4) buildWizardSummary();
+}
+
+function buildWizardSummary() {
+  const provider = document.querySelector('input[name="wizardProvider"]:checked')?.value || 'claude';
+  const tx = document.querySelector('input[name="wizardTranscription"]:checked')?.value || 'aws';
+  const audioSrcs = [...document.querySelectorAll('[data-wizard-audio]:checked')].map(c => c.closest('label').querySelector('span').textContent);
+  const ul = document.getElementById('wizardSummary');
+  ul.innerHTML = `
+    <li>AI provider: <strong>${provider === 'claude' ? 'Claude' : 'OpenAI'}</strong></li>
+    <li>Transcription: <strong>${tx === 'aws' ? 'AWS Transcribe' : 'Whisper (local)'}</strong></li>
+    <li>Audio: <strong>${audioSrcs.join(', ') || 'None selected'}</strong></li>
+  `;
+}
+
+async function wizardNext() {
+  if (wizardCurrentStep === WIZARD_TOTAL_STEPS) {
+    await finishWizard();
+    return;
+  }
+
+  // Step 1 validation: must have an API key entered
+  if (wizardCurrentStep === 1) {
+    const key = document.getElementById('wizardApiKey').value.trim();
+    if (!key) {
+      document.getElementById('wizardConnectionStatus').textContent = 'Enter an API key to continue.';
+      document.getElementById('wizardConnectionStatus').className = 'wizard-status error';
+      return;
+    }
+    // Save provider + key to config before proceeding
+    const provider = document.querySelector('input[name="wizardProvider"]:checked').value;
+    const config = await invoke('get_config');
+    if (provider === 'claude') config.claude_api_key = key;
+    else config.openai_api_key = key;
+    config.ai_provider = provider;
+    await invoke('save_config', { config });
+  }
+
+  // Step 2: save transcription config
+  if (wizardCurrentStep === 2) {
+    const tx = document.querySelector('input[name="wizardTranscription"]:checked').value;
+    const config = await invoke('get_config');
+    config.transcription_provider = tx;
+    if (tx === 'aws') {
+      config.aws_profile = document.getElementById('wizardAwsProfile').value.trim() || null;
+      config.aws_region = document.getElementById('wizardAwsRegion').value.trim() || null;
+    }
+    await invoke('save_config', { config });
+  }
+
+  showWizardStep(wizardCurrentStep + 1);
+}
+
+function wizardBack() {
+  if (wizardCurrentStep > 1) showWizardStep(wizardCurrentStep - 1);
+}
+
+async function wizardTestConnection() {
+  const key = document.getElementById('wizardApiKey').value.trim();
+  if (!key) return;
+  const provider = document.querySelector('input[name="wizardProvider"]:checked').value;
+  const statusEl = document.getElementById('wizardConnectionStatus');
+  const btn = document.getElementById('wizardTestBtn');
+
+  // Temporarily save key so test_ai_connection can read it from config
+  const config = await invoke('get_config');
+  const origKey = provider === 'claude' ? config.claude_api_key : config.openai_api_key;
+  if (provider === 'claude') config.claude_api_key = key;
+  else config.openai_api_key = key;
+  config.ai_provider = provider;
+  await invoke('save_config', { config });
+
+  btn.disabled = true;
+  statusEl.textContent = 'Testing...';
+  statusEl.className = 'wizard-status';
+
+  try {
+    const name = await invoke('test_ai_connection');
+    statusEl.textContent = `✓ Connected to ${name}`;
+    statusEl.className = 'wizard-status success';
+  } catch (e) {
+    statusEl.textContent = `✗ ${e}`;
+    statusEl.className = 'wizard-status error';
+    // Restore original key on failure
+    const cfg = await invoke('get_config');
+    if (provider === 'claude') cfg.claude_api_key = origKey;
+    else cfg.openai_api_key = origKey;
+    await invoke('save_config', { config: cfg });
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function finishWizard() {
+  await invoke('mark_setup_complete');
+  document.getElementById('wizardOverlay').hidden = true;
+}
+
+async function skipWizard() {
+  await invoke('mark_setup_complete');
+  document.getElementById('wizardOverlay').hidden = true;
+}
+
 // --- Init ---
 (async () => {
   // Capture original text on focus for contenteditable elements
@@ -916,4 +1071,5 @@ async function populateProfileSelect() {
 
   populateAudioSources();
   populateProfileSelect();
+  await initWizard();
 })();

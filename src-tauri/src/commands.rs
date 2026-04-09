@@ -429,6 +429,56 @@ pub async fn remove_correction(state: State<'_, AppState>, index: usize) -> Resu
     Ok(())
 }
 
+// ── Onboarding wizard commands ───────────────────────────────────────────────
+
+#[tauri::command]
+pub async fn test_ai_connection() -> Result<String, String> {
+    let config = AppConfig::get();
+    let client = reqwest::Client::new();
+    match config.ai_provider.as_str() {
+        "openai" => {
+            let key = config.openai_api_key.ok_or("No OpenAI API key set")?;
+            let res = client
+                .post("https://api.openai.com/v1/chat/completions")
+                .header("Authorization", format!("Bearer {}", key))
+                .json(&serde_json::json!({
+                    "model": "gpt-4o-mini",
+                    "max_tokens": 1,
+                    "messages": [{"role": "user", "content": "hi"}]
+                }))
+                .send()
+                .await
+                .map_err(|e| e.to_string())?;
+            if res.status().is_success() { Ok("OpenAI".into()) }
+            else { Err(format!("API error: {}", res.status())) }
+        }
+        _ => {
+            let key = config.claude_api_key.ok_or("No Claude API key set")?;
+            let res = client
+                .post("https://api.anthropic.com/v1/messages")
+                .header("x-api-key", &key)
+                .header("anthropic-version", "2023-06-01")
+                .json(&serde_json::json!({
+                    "model": "claude-haiku-4-5-20251001",
+                    "max_tokens": 1,
+                    "messages": [{"role": "user", "content": "hi"}]
+                }))
+                .send()
+                .await
+                .map_err(|e| e.to_string())?;
+            if res.status().is_success() { Ok("Claude".into()) }
+            else { Err(format!("API error: {}", res.status())) }
+        }
+    }
+}
+
+#[tauri::command]
+pub async fn mark_setup_complete() -> Result<(), String> {
+    let mut config = AppConfig::get();
+    config.setup_complete = true;
+    config.save().map_err(|e| e.to_string())
+}
+
 // ── Whisper model downloader ─────────────────────────────────────────────────
 
 #[cfg(feature = "whisper")]

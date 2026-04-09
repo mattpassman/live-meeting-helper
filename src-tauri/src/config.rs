@@ -52,6 +52,10 @@ pub struct AppConfig {
     /// Enable verbose (debug-level) logging
     #[serde(default)]
     pub verbose_logging: bool,
+
+    /// Whether the first-run onboarding wizard has been completed or skipped
+    #[serde(default)]
+    pub setup_complete: bool,
 }
 
 fn default_ai_provider() -> String {
@@ -76,6 +80,7 @@ impl Default for AppConfig {
             aws_region: None,
             audio_device: None,
             verbose_logging: false,
+            setup_complete: false,
         }
     }
 }
