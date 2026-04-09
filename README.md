@@ -25,10 +25,10 @@ v0.1.0 is the first release. Installers are available on the Releases page. macO
 
 - **Live, structured notes generated automatically as you speak** — no manual summarizing after the fact
 - **Captures everyone on the call** — records both your microphone and system audio, so remote participants are included too
-- **Speaker-aware transcripts** — the notes reflect who said what, not just a wall of text
+- **Transcript saved with each session for reference** — review what was said alongside your generated notes
 - **Works with the AI you already have** — bring your own Claude or OpenAI API key; no subscription to a new service required
 - **Full session history** — past meetings are saved automatically, and nothing is lost if the app closes unexpectedly
-- **Stays out of your way** — lives in the system tray during meetings and only surfaces when you need it
+- **Stays out of your way** — runs quietly in the background during meetings and only surfaces when you need it
 - **Private-by-default option** — enable local Whisper transcription in Settings to keep all audio on your machine
 - **Profile support** — save different configurations for standups, client calls, interviews, and more
 
@@ -116,6 +116,8 @@ Key settings (configurable via the Settings UI):
 | Audio Device | Specific audio device to capture from |
 
 #### Local Whisper — model downloads
+
+> **Note:** Models can be downloaded directly in the app via **Settings → Transcription → Whisper**. Manual download is only needed for advanced use cases.
 
 Download GGML models from [huggingface.co/ggerganov/whisper.cpp](https://huggingface.co/ggerganov/whisper.cpp):
 

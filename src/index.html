@@ -37,6 +37,8 @@
         <button id="btnStop" class="btn btn-danger" onclick="stopMeeting()" disabled>Stop</button>
       </div>
 
+      <div id="meetingError" class="meeting-error"></div>
+
       <div id="docPanel" class="doc-panel">
         <div class="doc-header">
           <span class="doc-label">Reference Document</span>
@@ -107,7 +109,7 @@
           <button class="btn btn-primary" onclick="saveSessionFile('markdown')">Save Markdown</button>
           <button class="btn btn-primary" onclick="saveSessionFile('plaintext')">Save Plain Text</button>
           <button class="btn" onclick="copySessionToClipboard('markdown')">Copy Markdown</button>
-          <button class="btn" onclick="toggleTranscript()">Toggle Transcript</button>
+          <button id="toggleTranscriptBtn" class="btn" onclick="toggleTranscript()">Toggle Transcript</button>
         </div>
       </div>
     </div>
@@ -120,6 +122,7 @@
       <div id="profileForm" class="profile-form" style="display:none">
         <h3 id="profileFormTitle">New Profile</h3>
         <input type="hidden" id="profileId">
+        <div id="profileFormError" class="form-error"></div>
         <label>Name<input type="text" id="profileName"></label>
         <label>Instructions<textarea id="profileInstructions" rows="4" placeholder="e.g. 'This is a sprint retrospective, focus on action items'"></textarea></label>
         <div class="form-actions">
@@ -227,6 +230,7 @@
 
         <hr style="margin:12px 0;border:none;border-top:1px solid var(--border-light)">
         <label class="toggle-label"><input type="checkbox" id="settingsVerbose"> Verbose logging (debug level, requires restart)</label>
+        <div id="settingsSaveStatus" class="save-status"></div>
         <div class="form-actions">
           <button class="btn btn-primary" onclick="saveSettings()">Save</button>
           <button class="btn" onclick="loadSettings()">Reset</button>

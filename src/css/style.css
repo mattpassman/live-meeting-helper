@@ -648,11 +648,35 @@ main#content {
 /* ── Export status toast ── */
 .export-status {
   font-size: 0.8rem;
-  color: var(--muted);
+  color: var(--text-hint);
   padding: 4px 8px;
 }
 .export-status.error {
   color: var(--danger);
+}
+
+/* ── Inline save / form feedback ── */
+.save-status {
+  font-size: 13px;
+  min-height: 1.4em;
+  padding: 4px 0;
+  color: var(--text-hint);
+}
+.save-status.success { color: var(--success); }
+.save-status.error   { color: var(--danger); }
+
+.form-error {
+  font-size: 13px;
+  color: var(--danger);
+  min-height: 1.4em;
+  margin-bottom: 4px;
+}
+
+.meeting-error {
+  font-size: 13px;
+  color: var(--danger);
+  min-height: 1.2em;
+  margin-bottom: 8px;
 }
 
 /* ── Whisper model picker ── */

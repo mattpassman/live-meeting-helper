@@ -31,7 +31,7 @@ pub async fn start_meeting(
     state: State<'_, AppState>,
     audio_source: String,
     title: Option<String>,
-    profile_name: Option<String>,
+    profile_id: Option<String>,
     mic_device: Option<String>,
     on_notes: tauri::ipc::Channel<MeetingNotes>,
     on_state: tauri::ipc::Channel<String>,
@@ -50,7 +50,7 @@ pub async fn start_meeting(
         _ => AudioSource::Microphone,
     };
 
-    let profile = profile_name
+    let profile = profile_id
         .and_then(|name| state.profiles.get_profile(&name))
         .unwrap_or_else(ProfileService::default_profile);
 

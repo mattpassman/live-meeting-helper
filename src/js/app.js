@@ -39,7 +39,7 @@ async function startMeeting() {
   }
 
   const title = document.getElementById('meetingTitle').value || undefined;
-  const profileName = document.getElementById('profileSelect').value || null;
+  const profileId = document.getElementById('profileSelect').value || null;
 
   const hasSystem = sources.includes('system');
   const mics = sources.filter(v => v !== 'system');
@@ -61,10 +61,12 @@ async function startMeeting() {
       const s = state.toLowerCase();
       setMeetingControls(s === 'completed' ? 'idle' : s);
     };
-    await invoke('start_meeting', { audioSource, title, profileName, micDevice, onNotes, onState });
+    await invoke('start_meeting', { audioSource, title, profileId, micDevice, onNotes, onState });
     setMeetingControls('active');
   } catch (e) {
-    alert('Failed to start: ' + e);
+    const errEl = document.getElementById('meetingError');
+    errEl.textContent = 'Failed to start: ' + e;
+    setTimeout(() => { errEl.textContent = ''; }, 5000);
   }
 }
 
@@ -484,8 +486,9 @@ async function loadHistory() {
     sessions.sort((a, b) => b.start_time - a.start_time);
     list.innerHTML = sessions.map(s => {
       const date = new Date(s.start_time).toLocaleDateString();
-      return `<div class="history-item" onclick="viewSession('${s.session_id}')">
-        <div><span class="title">${esc(s.title)}</span><br><span class="meta">${date} · ${s.state}</span></div>
+      return `<div class="history-item">
+        <div onclick="viewSession('${s.session_id}')" style="flex:1;cursor:pointer"><span class="title">${esc(s.title)}</span><br><span class="meta">${date} · ${s.state}</span></div>
+        <button class="btn btn-sm btn-danger" onclick="deleteSession(event, '${s.session_id}')">Delete</button>
       </div>`;
     }).join('');
   } catch (e) { console.error(e); }
@@ -526,7 +529,8 @@ async function viewSession(id) {
     renderHistoryNotes(session.notes);
     // Render transcript
     const transcriptEl = document.getElementById('historyTranscript');
-    if (session.transcript?.length) {
+    const hasTranscript = !!(session.transcript?.length);
+    if (hasTranscript) {
       const lines = session.transcript.map(s => {
         const speaker = s.speaker || 'Unknown';
         const mins = Math.floor(s.start_time_ms / 60000);
@@ -539,7 +543,9 @@ async function viewSession(id) {
     } else {
       transcriptEl.style.display = 'none';
     }
-  } catch (e) { alert(e); }
+    // Show/hide Toggle Transcript button based on whether transcript data exists
+    document.getElementById('toggleTranscriptBtn').style.display = hasTranscript ? '' : 'none';
+  } catch (e) { console.error('viewSession error:', e); }
 }
 
 function toggleTranscript() {
@@ -555,10 +561,10 @@ async function querySession() {
   const answerEl = document.getElementById('historyAnswer');
   const contentEl = document.getElementById('historyAnswerContent');
   answerEl.style.display = 'block';
-  contentEl.innerHTML = '<em>Updating notes...</em>';
+  contentEl.innerHTML = '<em>Thinking...</em>';
   try {
     const notes = await invoke('query_session', { sessionId: currentHistorySession, question });
-    contentEl.innerHTML = '<em>Notes updated.</em>';
+    answerEl.style.display = 'none';
     renderHistoryNotes(notes);
   } catch (e) {
     contentEl.innerHTML = `<span style="color:var(--danger)">${esc(String(e))}</span>`;
@@ -569,6 +575,15 @@ function closeHistoryDetail() {
   document.getElementById('historyDetail').style.display = 'none';
   document.getElementById('historyList').style.display = '';
   currentHistorySession = null;
+}
+
+async function deleteSession(event, id) {
+  event.stopPropagation();
+  if (!confirm('Delete this session? This cannot be undone.')) return;
+  try {
+    await invoke('delete_session', { sessionId: id });
+    loadHistory();
+  } catch (e) { console.error('Delete failed:', e); }
 }
 
 async function saveSessionFile(format) {
@@ -640,9 +655,11 @@ async function editProfile(id) {
 }
 
 async function saveProfileForm() {
+  const errEl = document.getElementById('profileFormError');
+  errEl.textContent = '';
   const id = document.getElementById('profileId').value || crypto.randomUUID();
   const name = document.getElementById('profileName').value.trim();
-  if (!name) { alert('Name is required'); return; }
+  if (!name) { errEl.textContent = 'Name is required'; return; }
   const profile = {
     id,
     name,
@@ -658,7 +675,7 @@ async function saveProfileForm() {
     await invoke('save_profile', { profile });
     hideProfileForm();
     loadProfiles();
-  } catch (e) { alert(e); }
+  } catch (e) { errEl.textContent = String(e); }
 }
 
 async function deleteProfileById(id) {
@@ -779,10 +796,18 @@ async function saveSettings() {
     audio_device: document.getElementById('settingsAudioDevice').value || null,
     verbose_logging: document.getElementById('settingsVerbose').checked,
   };
+  const statusEl = document.getElementById('settingsSaveStatus');
+  statusEl.textContent = '';
+  statusEl.className = 'save-status';
   try {
     await invoke('save_config', { config });
-    alert('Settings saved!');
-  } catch (e) { alert(e); }
+    statusEl.textContent = 'Settings saved';
+    statusEl.className = 'save-status success';
+    setTimeout(() => { statusEl.textContent = ''; statusEl.className = 'save-status'; }, 3000);
+  } catch (e) {
+    statusEl.textContent = String(e);
+    statusEl.className = 'save-status error';
+  }
 }
 
 // --- Audio Source Selector ---
