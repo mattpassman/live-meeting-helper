@@ -566,3 +566,13 @@ main#content {
 .tray-text { flex: 1; color: var(--text); }
 .tray-empty { color: var(--text-hint); font-size: 13px; padding: 4px 0; }
 .btn-sm { padding: 3px 10px; font-size: 11px; }
+
+/* ── Export status toast ── */
+.export-status {
+  font-size: 0.8rem;
+  color: var(--muted);
+  padding: 4px 8px;
+}
+.export-status.error {
+  color: var(--danger);
+}

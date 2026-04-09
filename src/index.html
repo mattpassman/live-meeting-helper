@@ -101,8 +101,9 @@
           <div id="historyAnswerContent" class="content"></div>
         </div>
         <div class="history-actions">
-          <button class="btn btn-primary" onclick="exportSession('markdown')">Export Markdown</button>
-          <button class="btn" onclick="exportSession('plaintext')">Export Plain Text</button>
+          <button class="btn btn-primary" onclick="saveSessionFile('markdown')">Save Markdown</button>
+          <button class="btn btn-primary" onclick="saveSessionFile('plaintext')">Save Plain Text</button>
+          <button class="btn" onclick="copySessionToClipboard('markdown')">Copy Markdown</button>
           <button class="btn" onclick="toggleTranscript()">Toggle Transcript</button>
         </div>
       </div>

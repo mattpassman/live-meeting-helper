@@ -89,6 +89,7 @@ async fn main() {
             commands::restore_note_block,
             commands::get_corrections,
             commands::remove_correction,
+            commands::save_session_file,
         ])
         .setup(|app| {
             // System tray

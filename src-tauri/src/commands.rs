@@ -194,6 +194,54 @@ pub async fn delete_session(state: State<'_, AppState>, session_id: String) -> R
     state.persistence.delete_session(&session_id).map_err(|e| e.to_string())
 }
 
+#[tauri::command]
+pub async fn save_session_file(
+    state: State<'_, AppState>,
+    session_id: String,
+    format: String,
+) -> Result<String, String> {
+    let fmt = match format.as_str() {
+        "plaintext" => ExportFormat::PlainText,
+        _ => ExportFormat::Markdown,
+    };
+
+    let text = state
+        .persistence
+        .export_notes(&session_id, fmt)
+        .ok_or_else(|| "Session not found".to_string())?;
+
+    let session = state
+        .persistence
+        .load_session(&session_id)
+        .ok_or_else(|| "Session not found".to_string())?;
+
+    // Build safe filename from session title
+    let safe_title: String = session
+        .title
+        .chars()
+        .map(|c| if c.is_alphanumeric() { c } else { '_' })
+        .collect::<String>()
+        .chars()
+        .take(60)
+        .collect();
+    let timestamp = chrono::Local::now().format("%Y%m%d_%H%M%S");
+    let extension = match fmt {
+        ExportFormat::Markdown => "md",
+        ExportFormat::PlainText => "txt",
+    };
+    let filename = format!("{safe_title}_{timestamp}.{extension}");
+
+    // Choose save directory: Desktop > Documents > current dir
+    let save_dir = dirs::desktop_dir()
+        .or_else(dirs::document_dir)
+        .unwrap_or_else(|| std::path::PathBuf::from("."));
+
+    let file_path = save_dir.join(&filename);
+    std::fs::write(&file_path, text).map_err(|e| e.to_string())?;
+
+    Ok(file_path.to_string_lossy().into_owned())
+}
+
 // Profile commands
 #[tauri::command]
 pub async fn list_profiles(state: State<'_, AppState>) -> Result<Vec<MeetingProfile>, String> {

@@ -558,13 +558,33 @@ function closeHistoryDetail() {
   currentHistorySession = null;
 }
 
-async function exportSession(format) {
+async function saveSessionFile(format) {
+  if (!currentHistorySession) return;
+  try {
+    const path = await invoke('save_session_file', { sessionId: currentHistorySession, format });
+    showExportStatus(`Saved to ${path}`);
+  } catch (e) { showExportStatus(`Error: ${e}`, true); }
+}
+
+async function copySessionToClipboard(format) {
   if (!currentHistorySession) return;
   try {
     const text = await invoke('export_session', { sessionId: currentHistorySession, format });
     await navigator.clipboard.writeText(text);
-    alert('Exported to clipboard!');
-  } catch (e) { alert(e); }
+    showExportStatus('Copied to clipboard');
+  } catch (e) { showExportStatus(`Error: ${e}`, true); }
+}
+
+function showExportStatus(msg, isError = false) {
+  let el = document.getElementById('exportStatus');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'exportStatus';
+    document.querySelector('.history-actions').insertAdjacentElement('afterend', el);
+  }
+  el.textContent = msg;
+  el.className = 'export-status' + (isError ? ' error' : '');
+  setTimeout(() => { el.textContent = ''; }, 4000);
 }
 
 // --- Profiles ---
