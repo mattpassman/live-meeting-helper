@@ -428,3 +428,143 @@ pub async fn remove_correction(state: State<'_, AppState>, index: usize) -> Resu
     notes.corrections.remove(index);
     Ok(())
 }
+
+// ── Whisper model downloader ─────────────────────────────────────────────────
+
+#[cfg(feature = "whisper")]
+#[tauri::command]
+pub async fn download_whisper_model(
+    model_id: String,
+    on_progress: tauri::ipc::Channel<f64>,
+) -> Result<String, String> {
+    use futures_util::StreamExt;
+    use std::io::Write;
+
+    // Validate model_id
+    let valid_ids = ["tiny.en", "base.en", "small.en", "medium.en"];
+    if !valid_ids.contains(&model_id.as_str()) {
+        return Err(format!("Unknown model id '{}'. Valid ids: tiny.en, base.en, small.en, medium.en", model_id));
+    }
+
+    let filename = format!("ggml-{}.bin", model_id);
+
+    // Resolve download directory
+    let models_dir = dirs::data_dir()
+        .ok_or_else(|| "Cannot determine data directory".to_string())?
+        .join("live-meeting-helper")
+        .join("models");
+
+    std::fs::create_dir_all(&models_dir)
+        .map_err(|e| format!("Cannot create models directory: {e}"))?;
+
+    let dest_path = models_dir.join(&filename);
+
+    // Already downloaded — return immediately
+    if dest_path.exists() {
+        let path_str = dest_path.to_string_lossy().into_owned();
+        tracing::info!("Model already exists at {}", path_str);
+        let _ = on_progress.send(1.0);
+        return Ok(path_str);
+    }
+
+    let tmp_path = models_dir.join(format!("{}.tmp", filename));
+
+    // Clean up any leftover .tmp from a previous failed attempt
+    if tmp_path.exists() {
+        let _ = std::fs::remove_file(&tmp_path);
+    }
+
+    let url = format!(
+        "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/{}",
+        filename
+    );
+
+    tracing::info!("Downloading {} from {}", filename, url);
+
+    let client = reqwest::Client::new();
+    let response = client
+        .get(&url)
+        .send()
+        .await
+        .map_err(|e| format!("Request failed: {e}"))?;
+
+    if !response.status().is_success() {
+        return Err(format!("HTTP {}: {}", response.status(), url));
+    }
+
+    let content_length = response.content_length();
+    tracing::info!(
+        "Content-Length: {}",
+        content_length.map_or("unknown".to_string(), |n| n.to_string())
+    );
+
+    // Open .tmp file for writing
+    let mut tmp_file = std::fs::File::create(&tmp_path)
+        .map_err(|e| format!("Cannot create temp file: {e}"))?;
+
+    let mut stream = response.bytes_stream();
+    let mut downloaded: u64 = 0;
+    // Throttle: send a progress update every ~1 MB
+    const PROGRESS_INTERVAL: u64 = 1_024 * 1_024; // 1 MB
+    let mut next_report_at: u64 = PROGRESS_INTERVAL;
+    let mut last_fraction: f64 = -1.0;
+
+    while let Some(chunk) = stream.next().await {
+        let chunk = chunk.map_err(|e| {
+            // Attempt cleanup on error
+            let _ = std::fs::remove_file(&tmp_path);
+            format!("Download error: {e}")
+        })?;
+
+        tmp_file.write_all(&chunk).map_err(|e| {
+            let _ = std::fs::remove_file(&tmp_path);
+            format!("Write error: {e}")
+        })?;
+
+        downloaded += chunk.len() as u64;
+
+        // Throttled progress reporting
+        if downloaded >= next_report_at {
+            next_report_at = downloaded + PROGRESS_INTERVAL;
+            let fraction = if let Some(total) = content_length {
+                (downloaded as f64 / total as f64).clamp(0.0, 1.0)
+            } else {
+                // Unknown length — send bytes as a negative sentinel (won't reach 1.0 until done)
+                -1.0_f64.min(downloaded as f64)
+            };
+            // Only send if it actually changed by at least 1%
+            if (fraction - last_fraction).abs() >= 0.01 {
+                last_fraction = fraction;
+                let _ = on_progress.send(fraction);
+            }
+        }
+    }
+
+    // Flush and close
+    tmp_file.flush().map_err(|e| {
+        let _ = std::fs::remove_file(&tmp_path);
+        format!("Flush error: {e}")
+    })?;
+    drop(tmp_file);
+
+    // Rename .tmp → final
+    std::fs::rename(&tmp_path, &dest_path).map_err(|e| {
+        let _ = std::fs::remove_file(&tmp_path);
+        format!("Rename failed: {e}")
+    })?;
+
+    let path_str = dest_path.to_string_lossy().into_owned();
+    tracing::info!("Download complete: {}", path_str);
+
+    // Final progress ping
+    let _ = on_progress.send(1.0);
+
+    // Persist path to config
+    let mut config = AppConfig::get();
+    config.whisper_model_path = Some(path_str.clone());
+    if let Err(e) = config.save() {
+        tracing::warn!("Failed to save config after model download: {e}");
+    }
+
+    Ok(path_str)
+}

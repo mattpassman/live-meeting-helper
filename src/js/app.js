@@ -656,6 +656,42 @@ async function deleteProfileById(id) {
   } catch (e) { alert(e); }
 }
 
+// --- Whisper Model Download ---
+async function downloadWhisperModel(modelId) {
+  const btn = document.querySelector(`[data-model-id="${modelId}"] button`);
+  const statusEl = document.getElementById(`modelStatus-${modelId}`);
+  if (!btn || !statusEl) return;
+
+  btn.disabled = true;
+  statusEl.textContent = 'Starting...';
+  statusEl.className = 'model-status downloading';
+
+  try {
+    const { Channel } = window.__TAURI__.core;
+    const onProgress = new Channel();
+    onProgress.onmessage = (fraction) => {
+      if (fraction >= 0) {
+        const pct = Math.round(fraction * 100);
+        statusEl.textContent = `${pct}%`;
+      }
+    };
+
+    const path = await invoke('download_whisper_model', { modelId, onProgress });
+
+    // Auto-fill the model path field and mark as downloaded
+    document.getElementById('settingsWhisperModelPath').value = path;
+    statusEl.textContent = 'Downloaded';
+    statusEl.className = 'model-status downloaded';
+    btn.textContent = 'Re-download';
+    btn.disabled = false;
+  } catch (e) {
+    statusEl.textContent = 'Failed';
+    statusEl.className = 'model-status error';
+    btn.disabled = false;
+    console.error('Download failed:', e);
+  }
+}
+
 // --- Settings ---
 function toggleAiProviderFields() {
   const provider = document.getElementById('settingsAiProvider').value;
@@ -680,13 +716,32 @@ async function loadSettings() {
     document.getElementById('settingsOpenAiModel').value = config.openai_model || '';
     const txProvider = config.transcription_provider || 'aws';
     document.getElementById('settingsTranscriptionProvider').value = txProvider;
-    document.getElementById('settingsWhisperModelPath').value = config.whisper_model_path || '';
+    const whisperPath = config.whisper_model_path || '';
+    document.getElementById('settingsWhisperModelPath').value = whisperPath;
     document.getElementById('settingsAwsProfile').value = config.aws_profile || '';
     document.getElementById('settingsAwsRegion').value = config.aws_region || '';
     document.getElementById('settingsAudioDevice').value = config.audio_device || '';
     document.getElementById('settingsVerbose').checked = config.verbose_logging || false;
     toggleAiProviderFields();
     toggleTranscriptionFields();
+
+    // Mark any already-downloaded model in the picker
+    const modelIds = ['tiny.en', 'base.en', 'small.en', 'medium.en'];
+    modelIds.forEach(id => {
+      const statusEl = document.getElementById(`modelStatus-${id}`);
+      const btn = document.querySelector(`[data-model-id="${id}"] button`);
+      if (!statusEl || !btn) return;
+      const key = id.replace('.', '-'); // e.g. "tiny-en" — just use includes on path
+      if (whisperPath && whisperPath.includes(`ggml-${id}`)) {
+        statusEl.textContent = 'Downloaded';
+        statusEl.className = 'model-status downloaded';
+        btn.textContent = 'Re-download';
+      } else {
+        statusEl.textContent = '';
+        statusEl.className = 'model-status';
+        btn.textContent = 'Download';
+      }
+    });
 
     const devices = await invoke('list_audio_devices');
     const dl = document.getElementById('audioDevicesList');

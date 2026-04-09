@@ -90,6 +90,8 @@ async fn main() {
             commands::get_corrections,
             commands::remove_correction,
             commands::save_session_file,
+            #[cfg(feature = "whisper")]
+            commands::download_whisper_model,
         ])
         .setup(|app| {
             // System tray

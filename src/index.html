@@ -167,11 +167,54 @@
 
         <div id="whisperFields" style="display:none">
           <div class="hint">Runs entirely on your device — no internet or cloud account needed. Audio never leaves your machine.</div>
-          <label>Model Path<input type="text" id="settingsWhisperModelPath" placeholder="/path/to/ggml-base.en.bin"></label>
-          <div class="hint">Download GGML models from <strong>huggingface.co/ggerganov/whisper.cpp</strong><br>
-            Recommended: <code>ggml-base.en.bin</code> (~142 MB) for English,
-            <code>ggml-small.en.bin</code> (~466 MB) for better accuracy.
+
+          <div class="whisper-models">
+            <div class="whisper-model-row" data-model-id="tiny.en">
+              <div class="model-info">
+                <span class="model-name">Tiny (English)</span>
+                <span class="model-meta">75 MB · Fastest, lower accuracy</span>
+              </div>
+              <div class="model-actions">
+                <span class="model-status" id="modelStatus-tiny.en"></span>
+                <button class="btn btn-sm" onclick="downloadWhisperModel('tiny.en')">Download</button>
+              </div>
+            </div>
+            <div class="whisper-model-row" data-model-id="base.en">
+              <div class="model-info">
+                <span class="model-name">Base (English) <span class="model-badge">Recommended</span></span>
+                <span class="model-meta">142 MB · Good balance of speed and accuracy</span>
+              </div>
+              <div class="model-actions">
+                <span class="model-status" id="modelStatus-base.en"></span>
+                <button class="btn btn-sm btn-primary" onclick="downloadWhisperModel('base.en')">Download</button>
+              </div>
+            </div>
+            <div class="whisper-model-row" data-model-id="small.en">
+              <div class="model-info">
+                <span class="model-name">Small (English)</span>
+                <span class="model-meta">466 MB · Better accuracy</span>
+              </div>
+              <div class="model-actions">
+                <span class="model-status" id="modelStatus-small.en"></span>
+                <button class="btn btn-sm" onclick="downloadWhisperModel('small.en')">Download</button>
+              </div>
+            </div>
+            <div class="whisper-model-row" data-model-id="medium.en">
+              <div class="model-info">
+                <span class="model-name">Medium (English)</span>
+                <span class="model-meta">1.5 GB · High accuracy, needs 5 GB+ RAM</span>
+              </div>
+              <div class="model-actions">
+                <span class="model-status" id="modelStatus-medium.en"></span>
+                <button class="btn btn-sm" onclick="downloadWhisperModel('medium.en')">Download</button>
+              </div>
+            </div>
           </div>
+
+          <details style="margin-top:8px">
+            <summary class="hint" style="cursor:pointer">Advanced: set model path manually</summary>
+            <label style="margin-top:6px">Model Path<input type="text" id="settingsWhisperModelPath" placeholder="/path/to/ggml-base.en.bin"></label>
+          </details>
         </div>
 
         <hr style="margin:12px 0;border:none;border-top:1px solid var(--border-light)">
