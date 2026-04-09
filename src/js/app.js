@@ -28,7 +28,9 @@ async function updateTitle() {
 }
 
 async function startMeeting() {
-  const source = document.getElementById('audioSource').value;
+  const micDevice = document.getElementById('micDevice').value || undefined;
+  const audioSource = document.getElementById('captureSystem').checked ? 'both' : 'microphone';
+  const profileName = document.getElementById('profileSelect').value || null;
   const title = document.getElementById('meetingTitle').value || undefined;
   try {
     const onNotes = new Channel();
@@ -44,7 +46,7 @@ async function startMeeting() {
       setMeetingControls(s === 'completed' ? 'idle' : s);
     };
 
-    await invoke('start_meeting', { audioSource: source, title, profileName: null, onNotes, onState });
+    await invoke('start_meeting', { audioSource, title, profileName, micDevice, onNotes, onState });
     setMeetingControls('active');
   } catch (e) {
     alert('Failed to start: ' + e);
@@ -696,6 +698,25 @@ async function saveSettings() {
   } catch (e) { alert(e); }
 }
 
+// --- Meeting screen dropdowns ---
+async function populateMicDevices() {
+  try {
+    const devices = await invoke('list_audio_devices');
+    const sel = document.getElementById('micDevice');
+    sel.innerHTML = '<option value="">Default Microphone</option>' +
+      devices.map(([name]) => `<option value="${name}">${esc(name)}</option>`).join('');
+  } catch (e) { console.error('Failed to list audio devices:', e); }
+}
+
+async function populateProfileSelect() {
+  try {
+    const profiles = await invoke('list_profiles');
+    const sel = document.getElementById('profileSelect');
+    sel.innerHTML = '<option value="">No profile</option>' +
+      profiles.map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join('');
+  } catch (e) { console.error('Failed to list profiles:', e); }
+}
+
 // --- Init ---
 (async () => {
   // Capture original text on focus for contenteditable elements
@@ -716,4 +737,7 @@ async function saveSettings() {
   } catch (e) {
     setMeetingControls('idle');
   }
+
+  populateMicDevices();
+  populateProfileSelect();
 })();

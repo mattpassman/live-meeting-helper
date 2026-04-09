@@ -32,6 +32,7 @@ pub async fn start_meeting(
     audio_source: String,
     title: Option<String>,
     profile_name: Option<String>,
+    mic_device: Option<String>,
     on_notes: tauri::ipc::Channel<MeetingNotes>,
     on_state: tauri::ipc::Channel<String>,
 ) -> Result<(), String> {
@@ -58,6 +59,7 @@ pub async fn start_meeting(
     *state.meeting_title.lock().await = resolved_title.clone();
     let config = SessionConfig {
         audio_source: source,
+        mic_device,
         title: Some(resolved_title),
         profile,
     };

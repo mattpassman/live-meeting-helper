@@ -47,6 +47,7 @@ pub fn list_input_devices() -> Vec<(String, bool)> {
 impl AudioCaptureHandle {
     pub fn start(
         source: AudioSource,
+        mic_device: Option<String>,
         tx: mpsc::Sender<AudioChunk>,
     ) -> Result<Self, AudioCaptureError> {
         let state = Arc::new(AtomicU8::new(STATE_IDLE));
@@ -66,9 +67,10 @@ impl AudioCaptureHandle {
             let p = paused.clone();
             let sf = stop_flag.clone();
             let tx_mic = tx.clone();
+            let mic_dev = mic_device.clone();
 
             thread = Some(std::thread::spawn(move || {
-                run_capture(AudioSource::Microphone, tx_mic, s, p, sf);
+                run_capture(AudioSource::Microphone, mic_dev, tx_mic, s, p, sf);
             }));
         }
 
@@ -244,15 +246,19 @@ fn f32_to_i16(s: f32) -> i16 {
 
 fn run_capture(
     source: AudioSource,
+    mic_device: Option<String>,
     tx: mpsc::Sender<AudioChunk>,
     state: Arc<AtomicU8>,
     paused: Arc<AtomicBool>,
     stop_flag: Arc<AtomicBool>,
 ) {
     let host = cpal::default_host();
-    let cfg = crate::config::AppConfig::get();
 
-    let device = if let Some(ref wanted) = cfg.audio_device {
+    // Use the caller-supplied device name; fall back to the saved config default.
+    let effective_device = mic_device
+        .or_else(|| crate::config::AppConfig::get().audio_device.clone());
+
+    let device = if let Some(ref wanted) = effective_device {
         // Find device by substring match
         let wanted_lower = wanted.to_lowercase();
         match host.input_devices() {

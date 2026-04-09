@@ -130,6 +130,17 @@ main#content {
 }
 .controls-bar input[type="text"] { flex: 1; min-width: 150px; }
 
+.system-audio-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.85rem;
+  color: var(--muted, var(--text-hint));
+  cursor: pointer;
+  white-space: nowrap;
+}
+.system-audio-label input[type="checkbox"] { accent-color: var(--primary); }
+
 /* ── Buttons ── */
 .btn {
   background: var(--surface);

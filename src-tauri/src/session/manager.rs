@@ -107,7 +107,7 @@ impl SessionManager {
         let (transcript_tx, transcript_rx) = mpsc::channel::<TranscriptionEvent>(128);
         let (notes_tx, notes_rx) = mpsc::channel::<NotesUpdate>(32);
 
-        let audio_handle = match AudioCaptureHandle::start(config.audio_source, audio_tx) {
+        let audio_handle = match AudioCaptureHandle::start(config.audio_source, config.mic_device.clone(), audio_tx) {
             Ok(h) => h,
             Err(e) => {
                 tracing::error!("Failed to start audio: {e}");

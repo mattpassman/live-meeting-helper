@@ -15,6 +15,7 @@ pub enum SessionEvent {
 #[derive(Debug, Clone)]
 pub struct SessionConfig {
     pub audio_source: AudioSource,
+    pub mic_device: Option<String>,
     pub title: Option<String>,
     pub profile: MeetingProfile,
 }
