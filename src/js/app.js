@@ -28,29 +28,55 @@ async function updateTitle() {
 }
 
 async function startMeeting() {
-  const micDevice = document.getElementById('micDevice').value || undefined;
-  const audioSource = document.getElementById('captureSystem').checked ? 'both' : 'microphone';
-  const profileName = document.getElementById('profileSelect').value || null;
+  const list = document.getElementById('audioSources');
+  const selected = Array.from(list.selectedOptions).map(o => o.value);
+
+  if (selected.length === 0) {
+    // Show inline error in the controls bar instead of alert()
+    showAudioSourceError('Select at least one audio source');
+    return;
+  }
+
   const title = document.getElementById('meetingTitle').value || undefined;
+  const profileName = document.getElementById('profileSelect').value || null;
+
+  const hasSystem = selected.includes('system');
+  const mics = selected.filter(v => v !== 'system');
+  const micDevice = mics.length > 0 ? mics[0] : undefined;
+
+  let audioSource;
+  if (hasSystem && micDevice) audioSource = 'both';
+  else if (hasSystem)         audioSource = 'system';
+  else                        audioSource = 'microphone';
+
   try {
     const onNotes = new Channel();
     onNotes.onmessage = (notes) => {
       console.log('Notes received via channel');
       renderNotes(notes);
     };
-
     const onState = new Channel();
     onState.onmessage = (state) => {
-      console.log('State received via channel:', state);
       const s = state.toLowerCase();
       setMeetingControls(s === 'completed' ? 'idle' : s);
     };
-
     await invoke('start_meeting', { audioSource, title, profileName, micDevice, onNotes, onState });
     setMeetingControls('active');
   } catch (e) {
     alert('Failed to start: ' + e);
   }
+}
+
+function showAudioSourceError(msg) {
+  let el = document.getElementById('audioSourceError');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'audioSourceError';
+    el.className = 'audio-source-error';
+    document.getElementById('audioSources').insertAdjacentElement('afterend', el);
+  }
+  el.textContent = msg;
+  setTimeout(() => { el.textContent = ''; }, 3000);
 }
 
 async function pauseMeeting() {
@@ -191,7 +217,7 @@ function renderNotes(notes) {
           <button class="block-delete" title="Delete" onclick="deleteBlock('${esc(a.id)}')">×</button>
         </div>`;
       }).join('');
-      html += `<div class="section ${updated ? 'updated' : ''}"><h2>Action Items</h2>${items}<button class="btn btn-add" onclick="addBlock('action_items')">+ Add Action Item</button></div>`;
+      html += `<div class="section ${updated ? 'updated' : ''}"><h2>Action Items</h2>${items}<button class="btn btn-add" onclick="addBlock('action_items', this)">+ Add Action Item</button></div>`;
     }
   }
 
@@ -207,7 +233,7 @@ function renderNotes(notes) {
           <button class="block-delete" title="Delete" onclick="deleteBlock('${esc(d.id)}')">×</button>
         </div>`;
       }).join('');
-      html += `<div class="section ${updated ? 'updated' : ''}"><h2>Decisions</h2>${decs}<button class="btn btn-add" onclick="addBlock('decisions')">+ Add Decision</button></div>`;
+      html += `<div class="section ${updated ? 'updated' : ''}"><h2>Decisions</h2>${decs}<button class="btn btn-add" onclick="addBlock('decisions', this)">+ Add Decision</button></div>`;
     }
   }
 
@@ -224,7 +250,7 @@ function renderNotes(notes) {
           <button class="block-delete" title="Delete" onclick="deleteBlock('${esc(t.id)}')">×</button>
         </div>`;
       }).join('');
-      html += `<div class="section ${updated ? 'updated' : ''}"><h2>Discussion Topics</h2>${topics}<button class="btn btn-add" onclick="addBlock('discussion_topics')">+ Add Topic</button></div>`;
+      html += `<div class="section ${updated ? 'updated' : ''}"><h2>Discussion Topics</h2>${topics}<button class="btn btn-add" onclick="addBlock('discussion_topics', this)">+ Add Topic</button></div>`;
     }
   }
 
@@ -292,9 +318,8 @@ async function deleteBlock(blockId) {
   } catch (e) { console.error('Delete failed:', e); }
 }
 
-function addBlock(section) {
+function addBlock(section, btn) {
   // Find the add button's parent section and insert an empty editable block before the button
-  const btn = event.target;
   const sectionEl = btn.closest('.section');
   if (!sectionEl) return;
 
@@ -313,7 +338,7 @@ function addBlock(section) {
   editable.focus();
 
   // Save on blur
-  newEl.addEventListener('focusout', async (e) => {
+  newEl.addEventListener('focusout', async () => {
     // Wait a tick — if focus moved to another editable within the same new-block, don't save yet
     await new Promise(r => setTimeout(r, 50));
     if (newEl.contains(document.activeElement)) return;
@@ -388,7 +413,6 @@ async function restoreBlock(blockId) {
     await invoke('restore_note_block', { blockId });
     // Update local notes and re-render
     if (lastNotes) {
-      const all = [lastNotes.summary, ...(lastNotes.discussion_topics||[]).map(t=>t), ...(lastNotes.decisions||[]).map(d=>d), ...(lastNotes.action_items||[]).map(a=>a)];
       // Find in flattened sections and reset state
       [lastNotes.summary].forEach(b => { if (b.id === blockId) b.block_state = 'AiManaged'; });
       (lastNotes.discussion_topics||[]).forEach(t => { if (t.id === blockId) t.block_state = 'AiManaged'; });
@@ -731,7 +755,6 @@ async function loadSettings() {
       const statusEl = document.getElementById(`modelStatus-${id}`);
       const btn = document.querySelector(`[data-model-id="${id}"] button`);
       if (!statusEl || !btn) return;
-      const key = id.replace('.', '-'); // e.g. "tiny-en" — just use includes on path
       if (whisperPath && whisperPath.includes(`ggml-${id}`)) {
         statusEl.textContent = 'Downloaded';
         statusEl.className = 'model-status downloaded';
@@ -774,13 +797,32 @@ async function saveSettings() {
 }
 
 // --- Meeting screen dropdowns ---
-async function populateMicDevices() {
+async function populateAudioSources() {
+  const list = document.getElementById('audioSources');
+  list.innerHTML = '';
+
+  // Fixed first option — always present
+  const sysOpt = document.createElement('option');
+  sysOpt.value = 'system';
+  sysOpt.textContent = 'System Audio';
+  sysOpt.selected = true; // default selection
+  list.appendChild(sysOpt);
+
+  // Mic devices from backend
   try {
     const devices = await invoke('list_audio_devices');
-    const sel = document.getElementById('micDevice');
-    sel.innerHTML = '<option value="">Default Microphone</option>' +
-      devices.map(([name]) => `<option value="${name}">${esc(name)}</option>`).join('');
-  } catch (e) { console.error('Failed to list audio devices:', e); }
+    devices.forEach(([name, _isDefault]) => {
+      const opt = document.createElement('option');
+      opt.value = name;        // raw name — NOT esc()-encoded
+      opt.textContent = name;  // textContent handles display-safe encoding automatically
+      list.appendChild(opt);
+    });
+  } catch (e) {
+    console.error('Failed to list audio devices:', e);
+  }
+
+  // Size: show all items up to 5, scroll beyond that
+  list.size = Math.min(list.options.length, 5);
 }
 
 async function populateProfileSelect() {
@@ -813,6 +855,6 @@ async function populateProfileSelect() {
     setMeetingControls('idle');
   }
 
-  populateMicDevices();
+  populateAudioSources();
   populateProfileSelect();
 })();

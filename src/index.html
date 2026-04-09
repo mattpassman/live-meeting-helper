@@ -22,10 +22,7 @@
     <!-- Meeting View -->
     <div id="view-meeting" class="view active">
       <div class="controls-bar">
-        <select id="micDevice" title="Microphone source"></select>
-        <label class="system-audio-label" title="Also capture system audio output">
-          <input type="checkbox" id="captureSystem" checked> System audio
-        </label>
+        <select id="audioSources" multiple title="Audio sources — hold Cmd/Ctrl to select multiple"></select>
         <select id="profileSelect" title="Meeting profile"></select>
         <input type="text" id="meetingTitle" placeholder="Meeting title (optional)" onblur="updateTitle()">
         <button id="btnStart" class="btn btn-primary" onclick="startMeeting()">Start</button>
