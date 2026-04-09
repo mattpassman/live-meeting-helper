@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Meeting Helper</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="app">
+  <nav id="sidebar">
+    <div class="logo">Meeting Helper</div>
+    <button class="nav-btn active" data-view="meeting">Meeting</button>
+    <button class="nav-btn" data-view="history">History</button>
+    <button class="nav-btn" data-view="profiles">Profiles</button>
+    <button class="nav-btn" data-view="settings">Settings</button>
+    <div class="nav-spacer"></div>
+    <div id="navStatus" class="nav-status">Idle</div>
+  </nav>
+
+  <main id="content">
+    <!-- Meeting View -->
+    <div id="view-meeting" class="view active">
+      <div class="controls-bar">
+        <select id="audioSource">
+          <option value="microphone">Microphone</option>
+          <option value="system">System Audio</option>
+          <option value="both" selected>Both</option>
+        </select>
+        <input type="text" id="meetingTitle" placeholder="Meeting title (optional)" onblur="updateTitle()">
+        <button id="btnStart" class="btn btn-primary" onclick="startMeeting()">Start</button>
+        <button id="btnPause" class="btn btn-warn" onclick="pauseMeeting()" disabled>Pause</button>
+        <button id="btnResume" class="btn btn-primary" onclick="resumeMeeting()" style="display:none">Resume</button>
+        <button id="btnStop" class="btn btn-danger" onclick="stopMeeting()" disabled>Stop</button>
+      </div>
+
+      <div id="docPanel" class="doc-panel">
+        <div class="doc-header">
+          <span class="doc-label">Reference Document</span>
+          <span id="docStatus" class="doc-status"></span>
+        </div>
+        <div id="docEmpty" class="doc-actions">
+          <button class="btn" onclick="document.getElementById('docFileInput').click()">Select File</button>
+          <button class="btn" onclick="showDocPaste()">Paste Text</button>
+          <span class="doc-hint">PDF, DOCX, TXT, MD</span>
+          <input type="file" id="docFileInput" accept=".pdf,.docx,.txt,.md" style="display:none" onchange="attachDocFile(this)">
+        </div>
+        <div id="docPaste" class="doc-paste" style="display:none">
+          <textarea id="docPasteInput" rows="4" placeholder="Paste document content here..."></textarea>
+          <div class="form-actions">
+            <button class="btn btn-primary" onclick="attachDocText()">Attach</button>
+            <button class="btn" onclick="hideDocPaste()">Cancel</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="notesContainer">
+        <div class="section"><div class="empty">Start a meeting to see live notes here.</div></div>
+      </div>
+
+      <div id="deletedTray" class="tray" style="display:none">
+        <div class="tray-header" onclick="toggleTray('deletedTray')">
+          <span>Deleted Items</span>
+          <span class="tray-toggle">▸</span>
+        </div>
+        <div class="tray-body" style="display:none" id="deletedTrayBody"></div>
+      </div>
+
+      <div id="correctionsTray" class="tray" style="display:none">
+        <div class="tray-header" onclick="toggleTray('correctionsTray')">
+          <span>Corrections</span>
+          <span class="tray-toggle">▸</span>
+        </div>
+        <div class="tray-body" style="display:none" id="correctionsTrayBody"></div>
+      </div>
+
+      <div class="instruction-bar">
+        <input type="text" id="instructionInput" placeholder="Send an instruction, e.g. 'focus on the budget discussion'" onkeydown="if(event.key==='Enter')sendInstruction()">
+        <button class="btn btn-primary" onclick="sendInstruction()">Send</button>
+        <button class="btn" onclick="copyNotes()">Copy</button>
+      </div>
+    </div>
+
+    <!-- History View -->
+    <div id="view-history" class="view">
+      <h2>Session History</h2>
+      <div id="historyList" class="history-list"></div>
+      <div id="historyDetail" class="history-detail" style="display:none">
+        <button class="btn" onclick="closeHistoryDetail()">← Back</button>
+        <div id="historyNotes"></div>
+        <div id="historyTranscript" class="section" style="display:none">
+          <h2>Transcript</h2>
+          <div id="historyTranscriptContent" class="transcript-content"></div>
+        </div>
+        <div class="instruction-bar">
+          <input type="text" id="historyInstructionInput" placeholder="Ask about this meeting, e.g. 'did they mention X?'" onkeydown="if(event.key==='Enter')querySession()">
+          <button class="btn btn-primary" onclick="querySession()">Ask</button>
+        </div>
+        <div id="historyAnswer" class="section" style="display:none">
+          <h2>Answer</h2>
+          <div id="historyAnswerContent" class="content"></div>
+        </div>
+        <div class="history-actions">
+          <button class="btn btn-primary" onclick="exportSession('markdown')">Export Markdown</button>
+          <button class="btn" onclick="exportSession('plaintext')">Export Plain Text</button>
+          <button class="btn" onclick="toggleTranscript()">Toggle Transcript</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Profiles View -->
+    <div id="view-profiles" class="view">
+      <h2>Meeting Profiles</h2>
+      <button class="btn btn-primary" onclick="showProfileForm()">New Profile</button>
+      <div id="profileList" class="profile-list"></div>
+      <div id="profileForm" class="profile-form" style="display:none">
+        <h3 id="profileFormTitle">New Profile</h3>
+        <input type="hidden" id="profileId">
+        <label>Name<input type="text" id="profileName"></label>
+        <label>Instructions<textarea id="profileInstructions" rows="4" placeholder="e.g. 'This is a sprint retrospective, focus on action items'"></textarea></label>
+        <div class="form-actions">
+          <button class="btn btn-primary" onclick="saveProfileForm()">Save</button>
+          <button class="btn" onclick="hideProfileForm()">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Settings View -->
+    <div id="view-settings" class="view">
+      <h2>Settings</h2>
+      <div class="settings-form">
+        <h3 style="margin-bottom:8px">AI Provider (Note Generation)</h3>
+        <label>Provider
+          <select id="settingsAiProvider" onchange="toggleAiProviderFields()">
+            <option value="claude">Claude (Anthropic)</option>
+            <option value="openai">OpenAI</option>
+          </select>
+        </label>
+
+        <div id="claudeFields">
+          <label>Claude API Key<input type="password" id="settingsClaudeApiKey" placeholder="sk-ant-..."></label>
+          <label>Claude Model<input type="text" id="settingsClaudeModel" placeholder="claude-sonnet-4-6 (default)"></label>
+          <div class="hint">Get your API key at <strong>console.anthropic.com</strong></div>
+        </div>
+
+        <div id="openaiFields" style="display:none">
+          <label>OpenAI API Key<input type="password" id="settingsOpenAiKey" placeholder="sk-..."></label>
+          <label>OpenAI Model<input type="text" id="settingsOpenAiModel" placeholder="gpt-4o (default)"></label>
+          <div class="hint">Get your API key at <strong>platform.openai.com</strong></div>
+        </div>
+
+        <hr style="margin:12px 0;border:none;border-top:1px solid var(--border-light)">
+        <h3 style="margin-bottom:8px">Transcription</h3>
+        <label>Provider
+          <select id="settingsTranscriptionProvider" onchange="toggleTranscriptionFields()">
+            <option value="aws">AWS Transcribe (cloud)</option>
+            <option value="whisper">Whisper (local / offline)</option>
+          </select>
+        </label>
+
+        <div id="awsTranscribeFields">
+          <div class="hint">Requires an AWS account with Transcribe access. Credentials are loaded from the standard AWS credential chain (~/.aws/credentials, environment variables, or IAM role).</div>
+          <label>AWS Profile<input type="text" id="settingsAwsProfile" placeholder="default (leave empty for default)"></label>
+          <label>AWS Region<input type="text" id="settingsAwsRegion" placeholder="us-east-1"></label>
+        </div>
+
+        <div id="whisperFields" style="display:none">
+          <div class="hint">Runs entirely on your device — no internet or cloud account needed. Audio never leaves your machine.</div>
+          <label>Model Path<input type="text" id="settingsWhisperModelPath" placeholder="/path/to/ggml-base.en.bin"></label>
+          <div class="hint">Download GGML models from <strong>huggingface.co/ggerganov/whisper.cpp</strong><br>
+            Recommended: <code>ggml-base.en.bin</code> (~142 MB) for English,
+            <code>ggml-small.en.bin</code> (~466 MB) for better accuracy.
+          </div>
+        </div>
+
+        <hr style="margin:12px 0;border:none;border-top:1px solid var(--border-light)">
+        <h3 style="margin-bottom:8px">Audio</h3>
+        <label>Audio Device<input type="text" id="settingsAudioDevice" placeholder="Leave empty for default"></label>
+        <div id="audioDevicesList" class="devices-list"></div>
+
+        <hr style="margin:12px 0;border:none;border-top:1px solid var(--border-light)">
+        <label class="toggle-label"><input type="checkbox" id="settingsVerbose"> Verbose logging (debug level, requires restart)</label>
+        <div class="form-actions">
+          <button class="btn btn-primary" onclick="saveSettings()">Save</button>
+          <button class="btn" onclick="loadSettings()">Reset</button>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+<script src="js/app.js"></script>
+</body>
+</html>

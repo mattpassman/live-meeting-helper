@@ -1,0 +1,20 @@
+# NOTE: The active config is at ../.cargo/config.toml (project root).
+# Cargo searches config by CWD, not manifest path, so this file is only used
+# when cargo is invoked from within the src-tauri/ directory directly.
+# Placeholder for platform-specific build config
+# Note: lld is not available for Windows MSVC targets.
+# The default MSVC linker (link.exe) is used on Windows.
+
+# whisper.cpp (via ggml) uses std::filesystem which requires macOS 10.15, and
+# its cmake build breaks with -mcpu=native on macOS betas. Force both env vars
+# so they take effect even when cargo tauri build sets its own deployment target.
+# force=true overrides any value already in the environment.
+# Note: building with the whisper feature implicitly raises the minimum macOS
+# requirement to 10.15 (Catalina) for the resulting binary.
+[env]
+GGML_NATIVE = { value = "OFF", force = true }
+MACOSX_DEPLOYMENT_TARGET = { value = "10.15", force = true }
+# whisper-rs-sys build.rs forwards any CMAKE_* env var as -DKEY=VALUE to cmake,
+# so this forces cmake's own deployment target (overrides MacPorts cmake 3.22
+# which otherwise auto-sets CMAKE_OSX_DEPLOYMENT_TARGET=10.13).
+CMAKE_OSX_DEPLOYMENT_TARGET = { value = "10.15", force = true }
