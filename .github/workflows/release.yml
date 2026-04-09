@@ -1,0 +1,101 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+jobs:
+  build-windows:
+    name: Build Windows
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install npm dependencies
+        run: npm install
+
+      - name: Build Windows (no Whisper to avoid cmake dependency)
+        run: cargo tauri build --no-default-features --features app
+
+      - name: Upload Windows installers
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-installers
+          path: |
+            src-tauri/target/release/bundle/msi/
+            src-tauri/target/release/bundle/nsis/
+          if-no-files-found: error
+
+  build-linux:
+    name: Build Linux
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libgtk-3-dev \
+            libappindicator3-dev \
+            libasound2-dev \
+            cmake \
+            clang
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install npm dependencies
+        run: npm install
+
+      - name: Build Linux (includes Whisper — cmake and clang are installed)
+        run: cargo tauri build
+
+      - name: Upload Linux installers
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-installers
+          path: |
+            src-tauri/target/release/bundle/deb/
+            src-tauri/target/release/bundle/appimage/
+          if-no-files-found: error
+
+  create-release:
+    name: Create GitHub Release (draft)
+    needs: [build-windows, build-linux]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+
+      - name: Create draft release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            windows-installers/**/*
+            linux-installers/**/*
+          draft: true
+          generate_release_notes: true
+          token: ${{ secrets.GITHUB_TOKEN }}

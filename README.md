@@ -1,21 +1,62 @@
-# Live Meeting Helper (Tauri Desktop App)
+# Live Meeting Helper
 
-A real-time meeting assistant that captures audio (microphone + system audio), transcribes speech, and generates structured meeting notes live — packaged as a native desktop application.
+Live Meeting Helper is a desktop app that listens to your meetings and writes your notes for you. It captures both your microphone and system audio in real time, transcribes everyone speaking, and uses an AI model to produce structured, readable notes — all while you stay focused on the conversation itself. It's built for anyone who has ever missed something important because they were too busy writing it down.
+
+## Download
+
+v0.1.0 is the first release. Installers are available on the Releases page. macOS builds are uploaded manually by the maintainer.
+
+| Platform | Download |
+|----------|----------|
+| macOS (Apple Silicon) | See Releases page |
+| macOS (Intel) | See Releases page |
+| Windows 10/11 | See Releases page |
+| Linux (Ubuntu 20.04+ / Debian) | See Releases page |
+| Linux (AppImage) | See Releases page |
+
+## Quick Start (No build required)
+
+1. Download the installer for your platform from the Releases page
+2. Open the app — a setup wizard will guide you through configuration
+3. Enter your Claude or OpenAI API key when prompted
+4. Click **Start** on the Meeting tab and begin speaking
 
 ## Features
 
-- **Native Desktop App**: Tauri v2 with system webview — small binary, native performance
-- **Audio Capture**: Microphone via cpal, system audio via platform-native APIs
-  - macOS: ScreenCaptureKit (macOS 13+)
-  - Windows: WASAPI loopback capture
-  - Linux: PulseAudio/PipeWire monitor sources
-- **Real-Time Transcription**: Amazon Transcribe Streaming with speaker identification
-- **Live Note Generation**: LLM-powered structured notes via Claude (Anthropic) or OpenAI
-- **In-App UI**: Meeting controls, live notes, session history, profile management, settings
-- **System Tray**: Runs unobtrusively during meetings with quick controls
-- **Persistence**: Auto-save sessions to disk with crash recovery
+- **Live, structured notes generated automatically as you speak** — no manual summarizing after the fact
+- **Captures everyone on the call** — records both your microphone and system audio, so remote participants are included too
+- **Speaker-aware transcripts** — the notes reflect who said what, not just a wall of text
+- **Works with the AI you already have** — bring your own Claude or OpenAI API key; no subscription to a new service required
+- **Full session history** — past meetings are saved automatically, and nothing is lost if the app closes unexpectedly
+- **Stays out of your way** — lives in the system tray during meetings and only surfaces when you need it
+- **Private-by-default option** — enable local Whisper transcription in Settings to keep all audio on your machine
+- **Profile support** — save different configurations for standups, client calls, interviews, and more
 
-## Prerequisites
+## Supported Platforms
+
+macOS 13+, Windows 10/11, Linux (Ubuntu 20.04+)
+
+## Getting an API Key
+
+**Claude (default and recommended)**
+Go to [console.anthropic.com](https://console.anthropic.com), create an account, and generate an API key. Claude is the default because it produces especially clear and well-structured meeting notes. A paid account is recommended for regular use — the free tier has rate limits that may interrupt longer meetings.
+
+**OpenAI**
+Go to [platform.openai.com](https://platform.openai.com), create an account, and generate an API key under the API section. Select OpenAI as your provider in Settings after launching the app. A paid account is likewise recommended for heavy use.
+
+## Privacy & Audio
+
+By default, audio is sent to AWS Transcribe for transcription — the connection is encrypted in transit and AWS does not store your audio after transcription. Only the resulting transcript text is then sent to your chosen AI provider (Anthropic or OpenAI) to generate notes; raw audio never leaves your device for that step.
+
+If you want everything to stay on your machine, enable the **local Whisper** option in Settings. This runs transcription locally using an on-device model and nothing leaves your device at all.
+
+Your API keys are stored locally in a config file on your own machine and are never transmitted anywhere other than directly to Anthropic or OpenAI.
+
+---
+
+## For Developers & Contributors
+
+### Prerequisites
 
 - Rust 1.70+
 - **cmake** and a C++ compiler (required for Whisper, which builds by default):
@@ -32,14 +73,7 @@ A real-time meeting assistant that captures audio (microphone + system audio), t
   - **AWS Transcribe** (default): requires an AWS account with `transcribe:StartStreamTranscription` permission. Credentials via standard chain (`~/.aws/credentials`, env vars, IAM role).
   - **Local Whisper** (offline, private): build with `--features whisper` (needs cmake and a C++ compiler), then download a GGML model file and point to it in Settings. No cloud account needed.
 
-## Quick Start
-
-1. Build and run the app (see Build section below)
-2. Open **Settings** and enter your Claude or OpenAI API key
-3. Configure your AWS profile/region for transcription
-4. Click **Start** on the Meeting tab and begin speaking
-
-## Build
+### Build
 
 Cross-platform build script (Linux/macOS):
 ```bash
@@ -56,13 +90,13 @@ dev-build-windows.bat     # Debug build (faster compile)
 
 Binaries are output to `dist/`.
 
-## Development
+### Development
 
 ```bash
 cargo tauri dev
 ```
 
-## Configuration
+### Configuration
 
 Settings are stored in `~/.config/live-meeting-helper/config.json` (macOS/Linux) or `%APPDATA%\Live Meeting Helper\config.json` (Windows).
 
@@ -81,7 +115,7 @@ Key settings (configurable via the Settings UI):
 | AWS Region | AWS region for Transcribe (default: `us-east-1`) |
 | Audio Device | Specific audio device to capture from |
 
-### Local Whisper — model downloads
+#### Local Whisper — model downloads
 
 Download GGML models from [huggingface.co/ggerganov/whisper.cpp](https://huggingface.co/ggerganov/whisper.cpp):
 
@@ -97,7 +131,7 @@ Whisper support is compiled in by default. To build **without** it (e.g. on a ma
 cargo tauri build --no-default-features --features app
 ```
 
-## Project Structure
+### Project Structure
 
 ```
 ├── build.sh                # Cross-platform build script (Linux/macOS)
@@ -127,7 +161,7 @@ cargo tauri build --no-default-features --features app
 │       └── profile/        # Meeting profile management
 ```
 
-## Architecture
+### Architecture
 
 ```
 ┌─────────────────────────────────────────────┐
