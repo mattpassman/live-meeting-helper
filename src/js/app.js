@@ -570,7 +570,8 @@ async function querySession() {
   contentEl.innerHTML = '<em>Thinking...</em>';
   try {
     const notes = await invoke('query_session', { sessionId: currentHistorySession, question });
-    answerEl.style.display = 'none';
+    contentEl.innerHTML = '<em>Notes updated — scroll up to see the changes.</em>';
+    input.value = '';
     renderHistoryNotes(notes);
   } catch (e) {
     contentEl.innerHTML = `<span style="color:var(--danger)">${esc(String(e))}</span>`;
