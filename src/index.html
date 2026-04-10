@@ -225,8 +225,7 @@
 
         <hr style="margin:12px 0;border:none;border-top:1px solid var(--border-light)">
         <h3 style="margin-bottom:8px">Audio</h3>
-        <label>Audio Device<input type="text" id="settingsAudioDevice" placeholder="Leave empty for default"></label>
-        <div id="audioDevicesList" class="devices-list"></div>
+        <div class="hint">Audio sources are selected on the Meeting tab. Available devices are shown there when you open the audio source menu.</div>
 
         <hr style="margin:12px 0;border:none;border-top:1px solid var(--border-light)">
         <label class="toggle-label"><input type="checkbox" id="settingsVerbose"> Verbose logging (debug level, requires restart)</label>
@@ -279,17 +278,17 @@
       <p class="wizard-desc">How should your speech be converted to text?</p>
       <div class="wizard-provider-choice">
         <label class="wizard-provider-option">
-          <input type="radio" name="wizardTranscription" value="aws" checked>
+          <input type="radio" name="wizardTranscription" value="whisper" checked>
           <div class="wizard-provider-card">
-            <span class="wizard-provider-name">AWS Transcribe <span class="wizard-recommended">Recommended</span></span>
-            <span class="wizard-provider-detail">Cloud-based. Requires an AWS account with Transcribe access.</span>
+            <span class="wizard-provider-name">Whisper (local) <span class="wizard-recommended">Recommended</span></span>
+            <span class="wizard-provider-detail">Runs on your device — audio never leaves your machine. Download a model with one click in Settings.</span>
           </div>
         </label>
         <label class="wizard-provider-option">
-          <input type="radio" name="wizardTranscription" value="whisper">
+          <input type="radio" name="wizardTranscription" value="aws">
           <div class="wizard-provider-card">
-            <span class="wizard-provider-name">Whisper (local)</span>
-            <span class="wizard-provider-detail">Runs on your device. Audio never leaves your machine. Download a model in Settings after setup.</span>
+            <span class="wizard-provider-name">AWS Transcribe</span>
+            <span class="wizard-provider-detail">Cloud-based. Requires an AWS account with Transcribe permissions.</span>
           </div>
         </label>
       </div>

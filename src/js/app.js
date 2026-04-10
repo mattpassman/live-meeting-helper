@@ -74,21 +74,27 @@ async function pauseMeeting() {
   try {
     await invoke('pause_meeting');
     setMeetingControls('paused');
-  } catch (e) { alert(e); }
+  } catch (e) { showMeetingError(e); }
 }
 
 async function resumeMeeting() {
   try {
     await invoke('resume_meeting');
     setMeetingControls('active');
-  } catch (e) { alert(e); }
+  } catch (e) { showMeetingError(e); }
 }
 
 async function stopMeeting() {
   try {
     setMeetingControls('idle');
     await invoke('stop_meeting');
-  } catch (e) { alert(e); }
+  } catch (e) { console.error('Stop meeting failed:', e); }
+}
+
+function showMeetingError(e) {
+  const errEl = document.getElementById('meetingError');
+  errEl.textContent = String(e);
+  setTimeout(() => { errEl.textContent = ''; }, 5000);
 }
 
 function setMeetingControls(state) {
@@ -651,7 +657,7 @@ async function editProfile(id) {
   try {
     const profile = await invoke('get_profile', { id });
     showProfileForm(profile);
-  } catch (e) { alert(e); }
+  } catch (e) { console.error('Failed to load profile:', e); }
 }
 
 async function saveProfileForm() {
@@ -683,7 +689,7 @@ async function deleteProfileById(id) {
   try {
     await invoke('delete_profile', { id });
     loadProfiles();
-  } catch (e) { alert(e); }
+  } catch (e) { console.error('Delete failed:', e); }
 }
 
 // --- Whisper Model Download ---
@@ -750,7 +756,6 @@ async function loadSettings() {
     document.getElementById('settingsWhisperModelPath').value = whisperPath;
     document.getElementById('settingsAwsProfile').value = config.aws_profile || '';
     document.getElementById('settingsAwsRegion').value = config.aws_region || '';
-    document.getElementById('settingsAudioDevice').value = config.audio_device || '';
     document.getElementById('settingsVerbose').checked = config.verbose_logging || false;
     toggleAiProviderFields();
     toggleTranscriptionFields();
@@ -772,13 +777,6 @@ async function loadSettings() {
       }
     });
 
-    const devices = await invoke('list_audio_devices');
-    const dl = document.getElementById('audioDevicesList');
-    if (devices.length) {
-      dl.innerHTML = '<b>Available devices:</b><br>' + devices.map(([name, isDef]) =>
-        `${name}${isDef ? ' (default)' : ''}`
-      ).join('<br>');
-    }
   } catch (e) { console.error(e); }
 }
 
@@ -793,7 +791,6 @@ async function saveSettings() {
     whisper_model_path: document.getElementById('settingsWhisperModelPath').value || null,
     aws_profile: document.getElementById('settingsAwsProfile').value || null,
     aws_region: document.getElementById('settingsAwsRegion').value || null,
-    audio_device: document.getElementById('settingsAudioDevice').value || null,
     verbose_logging: document.getElementById('settingsVerbose').checked,
   };
   const statusEl = document.getElementById('settingsSaveStatus');
@@ -962,6 +959,8 @@ function showWizardStep(step) {
 
   // Show/hide AWS fields on step 2
   if (step === 2) {
+    const selected = document.querySelector('input[name="wizardTranscription"]:checked')?.value || 'whisper';
+    document.getElementById('wizardAwsFields').hidden = selected !== 'aws';
     document.querySelectorAll('input[name="wizardTranscription"]').forEach(r =>
       r.addEventListener('change', () => {
         document.getElementById('wizardAwsFields').hidden = r.value !== 'aws';
