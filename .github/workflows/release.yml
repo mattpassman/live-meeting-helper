@@ -30,7 +30,7 @@ jobs:
         run: npm install
 
       - name: Build Windows (full build including Whisper)
-        run: cargo tauri build
+        run: npm run tauri build
 
       - name: Upload Windows installers
         uses: actions/upload-artifact@v4
@@ -71,7 +71,7 @@ jobs:
         run: npm install
 
       - name: Build Linux (includes Whisper — cmake and clang are installed)
-        run: cargo tauri build
+        run: npm run tauri build
 
       - name: Upload Linux installers
         uses: actions/upload-artifact@v4
