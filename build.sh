@@ -66,29 +66,38 @@ build_macos() {
         echo "  Creating universal .app via lipo..."
         ARM_BIN="target/aarch64-apple-darwin/release/live-meeting-helper"
         X86_BIN="target/x86_64-apple-darwin/release/live-meeting-helper"
+        rm -rf "$OUT_DIR/Live Meeting Helper.app"
         cp -r "$BUNDLE_DIR/Live Meeting Helper.app" "$OUT_DIR/Live Meeting Helper.app"
         lipo -create "$ARM_BIN" "$X86_BIN" \
             -output "$OUT_DIR/Live Meeting Helper.app/Contents/MacOS/live-meeting-helper"
         echo "  → $OUT_DIR/Live Meeting Helper.app (universal)"
-    else
-        echo "  Building x86_64 .app..."
-        cargo tauri build --bundles app
 
+        echo "  Ad-hoc codesigning..."
+        codesign --force --deep --sign - "$OUT_DIR/Live Meeting Helper.app"
+
+        echo "  Creating universal .dmg..."
+        rm -f "$OUT_DIR/Live Meeting Helper-universal.dmg"
+        hdiutil create \
+            -volname "Live Meeting Helper" \
+            -srcfolder "$OUT_DIR/Live Meeting Helper.app" \
+            -ov -format UDZO \
+            "$OUT_DIR/Live Meeting Helper-universal.dmg"
+        echo "  → $OUT_DIR/Live Meeting Helper-universal.dmg"
+    else
+        echo "  Building x86_64 .app and .dmg..."
+        cargo tauri build --bundles dmg
 
         rm -rf "$OUT_DIR/Live Meeting Helper.app"
         cp -r "target/release/bundle/macos/Live Meeting Helper.app" "$OUT_DIR/Live Meeting Helper.app"
-        echo "  → $OUT_DIR/Live Meeting Helper.app"
+
+        DMG=$(ls target/release/bundle/dmg/*.dmg | head -1)
+        cp "$DMG" "$OUT_DIR/"
+        echo "  → $OUT_DIR/$(basename "$DMG")"
+
+        echo "  Ad-hoc codesigning .app..."
+        codesign --force --deep --sign - "$OUT_DIR/Live Meeting Helper.app"
+        echo "  Signed."
     fi
-
-    echo "  Patching Info.plist..."
-    PLIST="$OUT_DIR/Live Meeting Helper.app/Contents/Info.plist"
-    /usr/libexec/PlistBuddy -c "Add :NSPrincipalClass string NSApplication" "$PLIST" 2>/dev/null || \
-        /usr/libexec/PlistBuddy -c "Set :NSPrincipalClass NSApplication" "$PLIST"
-    /usr/libexec/PlistBuddy -c "Delete :LSRequiresCarbon" "$PLIST" 2>/dev/null || true
-
-    echo "  Ad-hoc codesigning..."
-    codesign --force --deep --sign - "$OUT_DIR/Live Meeting Helper.app"
-    echo "  Signed."
 }
 
 # --- Main ---
