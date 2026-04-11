@@ -6,14 +6,14 @@ Live Meeting Helper is a desktop app that listens to your meetings and writes yo
 
 | Platform | Download |
 |----------|----------|
-| macOS (Apple Silicon) | [Live.Meeting.Helper_0.1.0_aarch64.dmg](https://github.com/mattpassman/live-meeting-helper/releases/download/v0.1.0/Live.Meeting.Helper_0.1.0_aarch64.dmg) |
+| macOS (M1/M2/M3/M4) | [Live.Meeting.Helper_0.1.0_aarch64.dmg](https://github.com/mattpassman/live-meeting-helper/releases/download/v0.1.0/Live.Meeting.Helper_0.1.0_aarch64.dmg) |
 | Windows 10/11 | [Live.Meeting.Helper_0.1.0_x64-setup.exe](https://github.com/mattpassman/live-meeting-helper/releases/download/v0.1.0/Live.Meeting.Helper_0.1.0_x64-setup.exe) |
 | Linux (Ubuntu 20.04+ / Debian) | [Live.Meeting.Helper_0.1.0_amd64.deb](https://github.com/mattpassman/live-meeting-helper/releases/download/v0.1.0/Live.Meeting.Helper_0.1.0_amd64.deb) |
 | Linux (other distros) | [Live.Meeting.Helper_0.1.0_amd64.AppImage](https://github.com/mattpassman/live-meeting-helper/releases/download/v0.1.0/Live.Meeting.Helper_0.1.0_amd64.AppImage) |
 
 Also available: [Windows MSI](https://github.com/mattpassman/live-meeting-helper/releases/download/v0.1.0/Live.Meeting.Helper_0.1.0_x64_en-US.msi) · [Linux RPM](https://github.com/mattpassman/live-meeting-helper/releases/download/v0.1.0/Live.Meeting.Helper-0.1.0-1.x86_64.rpm) · [All releases](https://github.com/mattpassman/live-meeting-helper/releases)
 
-## Quick Start (No build required)
+## Quick Start
 
 1. Download the installer for your platform from the Releases page
 2. Open the app — a setup wizard will guide you through configuration
@@ -28,12 +28,12 @@ Also available: [Windows MSI](https://github.com/mattpassman/live-meeting-helper
 - **Works with the AI you already have** — bring your own Claude or OpenAI API key; no subscription to a new service required
 - **Full session history** — past meetings are saved automatically, and nothing is lost if the app closes unexpectedly
 - **Stays out of your way** — runs quietly in the background during meetings and only surfaces when you need it
-- **Private-by-default option** — enable local Whisper transcription in Settings to keep all audio on your machine
+- **Local transcription option** — enable local Whisper transcription in Settings to keep audio on your machine; note that transcript text is still sent to your AI provider to generate notes
 - **Profile support** — save different configurations for standups, client calls, interviews, and more
 
 ## Supported Platforms
 
-macOS 13+, Windows 10/11, Linux (Ubuntu 20.04+)
+macOS 13+ (Apple Silicon), Windows 10/11, Linux (Ubuntu 20.04+)
 
 ## Getting an API Key
 
@@ -43,13 +43,21 @@ Go to [console.anthropic.com](https://console.anthropic.com), create an account,
 **OpenAI**
 Go to [platform.openai.com](https://platform.openai.com), create an account, and generate an API key under the API section. Select OpenAI as your provider in Settings after launching the app. A paid account is likewise recommended for heavy use.
 
-## Privacy & Audio
+## Privacy & Data
 
-By default, audio is sent to AWS Transcribe for transcription — the connection is encrypted in transit and AWS does not store your audio after transcription. Only the resulting transcript text is then sent to your chosen AI provider (Anthropic or OpenAI) to generate notes; raw audio never leaves your device for that step.
+Live Meeting Helper sends data to external services to do its job. Here is exactly what goes where:
 
-If you want everything to stay on your machine, enable the **local Whisper** option in Settings. This runs transcription locally using an on-device model and nothing leaves your device at all.
+**Transcription (default: AWS Transcribe)**
+Audio is streamed to AWS Transcribe over an encrypted connection. AWS does not retain audio after transcription. The resulting transcript text is then sent to your AI provider to generate notes.
 
-Your API keys are stored locally in a config file on your own machine and are never transmitted anywhere other than directly to Anthropic or OpenAI.
+**Transcription (optional: local Whisper)**
+Enable this in Settings to run transcription on your device — no audio leaves your machine. The transcript text is still sent to your AI provider to generate notes.
+
+**Note generation (always)**
+Transcript text is sent to Anthropic or OpenAI (whichever you choose) to produce structured notes. This is unavoidable — it is how the notes are generated. Review your provider's data policies at [anthropic.com/legal/privacy](https://www.anthropic.com/legal/privacy) or [openai.com/policies/privacy-policy](https://openai.com/policies/privacy-policy).
+
+**API keys**
+Stored locally in a config file on your machine. Never sent anywhere except directly to Anthropic or OpenAI when making API calls.
 
 ---
 
