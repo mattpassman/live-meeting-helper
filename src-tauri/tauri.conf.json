@@ -1,6 +1,6 @@
 {
   "productName": "Live Meeting Helper",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "identifier": "com.livemeetinghelper.dev",
   "build": {
     "frontendDist": "../src",
