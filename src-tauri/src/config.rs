@@ -7,7 +7,7 @@ static APP_CONFIG: RwLock<Option<AppConfig>> = RwLock::new(None);
 /// App-level configuration stored on disk.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AppConfig {
-    /// AI provider to use for note generation: "claude" (default) or "openai"
+    /// AI provider to use for note generation: "claude" (default), "openai", or "claude-cli"
     #[serde(default = "default_ai_provider")]
     pub ai_provider: String,
 
@@ -18,6 +18,11 @@ pub struct AppConfig {
     /// Claude model to use (defaults to claude-sonnet-4-6)
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub claude_model: Option<String>,
+
+    /// Path to the claude CLI binary (defaults to "claude" in PATH).
+    /// Used when ai_provider is "claude-cli".
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub claude_cli_path: Option<String>,
 
     /// OpenAI API key for GPT note generation
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -72,6 +77,7 @@ impl Default for AppConfig {
             ai_provider: default_ai_provider(),
             claude_api_key: None,
             claude_model: None,
+            claude_cli_path: None,
             openai_api_key: None,
             openai_model: None,
             transcription_provider: default_transcription_provider(),

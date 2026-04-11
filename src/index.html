@@ -139,7 +139,8 @@
         <h3 style="margin-bottom:8px">AI Provider (Note Generation)</h3>
         <label>Provider
           <select id="settingsAiProvider" onchange="toggleAiProviderFields()">
-            <option value="claude">Claude (Anthropic)</option>
+            <option value="claude">Claude (Anthropic API key)</option>
+            <option value="claude-cli">Claude (via CLI — no API key needed)</option>
             <option value="openai">OpenAI</option>
           </select>
         </label>
@@ -148,6 +149,14 @@
           <label>Claude API Key<input type="password" id="settingsClaudeApiKey" placeholder="sk-ant-..."></label>
           <label>Claude Model<input type="text" id="settingsClaudeModel" placeholder="claude-sonnet-4-6 (default)"></label>
           <div class="hint">Get your API key at <strong>console.anthropic.com</strong></div>
+        </div>
+
+        <div id="claudeCliFields" style="display:none">
+          <div class="hint">Uses the <strong>claude</strong> CLI already installed on your system. Works with Claude Pro, Max, and Team plans — no separate API key needed.</div>
+          <details style="margin-top:6px">
+            <summary class="hint" style="cursor:pointer">Advanced: custom CLI path</summary>
+            <label style="margin-top:6px">Claude CLI path<input type="text" id="settingsClaudeCliPath" placeholder="claude (leave blank to use PATH)"></label>
+          </details>
         </div>
 
         <div id="openaiFields" style="display:none">
@@ -248,26 +257,36 @@
     <!-- Step 1: AI Provider -->
     <div class="wizard-step" id="wizardStep1">
       <h2>Choose your AI provider</h2>
-      <p class="wizard-desc">Live Meeting Helper uses an AI model to generate your meeting notes. You'll need an API key.</p>
+      <p class="wizard-desc">Live Meeting Helper uses an AI model to generate your meeting notes.</p>
       <div class="wizard-provider-choice">
         <label class="wizard-provider-option">
-          <input type="radio" name="wizardProvider" value="claude" checked>
+          <input type="radio" name="wizardProvider" value="claude" checked onchange="wizardProviderChanged()">
           <div class="wizard-provider-card">
-            <span class="wizard-provider-name">Claude <span class="wizard-recommended">Recommended</span></span>
-            <span class="wizard-provider-detail">Get a key at console.anthropic.com</span>
+            <span class="wizard-provider-name">Claude API <span class="wizard-recommended">Recommended</span></span>
+            <span class="wizard-provider-detail">Requires an API key from console.anthropic.com</span>
           </div>
         </label>
         <label class="wizard-provider-option">
-          <input type="radio" name="wizardProvider" value="openai">
+          <input type="radio" name="wizardProvider" value="claude-cli" onchange="wizardProviderChanged()">
+          <div class="wizard-provider-card">
+            <span class="wizard-provider-name">Claude CLI</span>
+            <span class="wizard-provider-detail">No API key needed — uses the claude CLI you already have (Pro, Max, or Team plan)</span>
+          </div>
+        </label>
+        <label class="wizard-provider-option">
+          <input type="radio" name="wizardProvider" value="openai" onchange="wizardProviderChanged()">
           <div class="wizard-provider-card">
             <span class="wizard-provider-name">OpenAI</span>
-            <span class="wizard-provider-detail">Get a key at platform.openai.com</span>
+            <span class="wizard-provider-detail">Requires an API key from platform.openai.com</span>
           </div>
         </label>
       </div>
-      <div class="wizard-api-input">
+      <div class="wizard-api-input" id="wizardApiKeySection">
         <input type="password" id="wizardApiKey" placeholder="Paste your API key here" autocomplete="off">
         <button class="btn btn-primary" id="wizardTestBtn" onclick="wizardTestConnection()">Test connection</button>
+      </div>
+      <div class="wizard-api-input" id="wizardCliSection" style="display:none">
+        <button class="btn btn-primary" id="wizardTestCliBtn" onclick="wizardTestConnection()">Test CLI connection</button>
       </div>
       <div id="wizardConnectionStatus" class="wizard-status"></div>
     </div>

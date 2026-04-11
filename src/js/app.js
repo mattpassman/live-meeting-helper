@@ -733,6 +733,7 @@ async function downloadWhisperModel(modelId) {
 function toggleAiProviderFields() {
   const provider = document.getElementById('settingsAiProvider').value;
   document.getElementById('claudeFields').style.display = provider === 'claude' ? '' : 'none';
+  document.getElementById('claudeCliFields').style.display = provider === 'claude-cli' ? '' : 'none';
   document.getElementById('openaiFields').style.display = provider === 'openai' ? '' : 'none';
 }
 
@@ -749,6 +750,7 @@ async function loadSettings() {
     document.getElementById('settingsAiProvider').value = provider;
     document.getElementById('settingsClaudeApiKey').value = config.claude_api_key || '';
     document.getElementById('settingsClaudeModel').value = config.claude_model || '';
+    document.getElementById('settingsClaudeCliPath').value = config.claude_cli_path || '';
     document.getElementById('settingsOpenAiKey').value = config.openai_api_key || '';
     document.getElementById('settingsOpenAiModel').value = config.openai_model || '';
     const txProvider = config.transcription_provider || 'aws';
@@ -786,6 +788,7 @@ async function saveSettings() {
     ai_provider: document.getElementById('settingsAiProvider').value || 'claude',
     claude_api_key: document.getElementById('settingsClaudeApiKey').value || null,
     claude_model: document.getElementById('settingsClaudeModel').value || null,
+    claude_cli_path: document.getElementById('settingsClaudeCliPath').value || null,
     openai_api_key: document.getElementById('settingsOpenAiKey').value || null,
     openai_model: document.getElementById('settingsOpenAiModel').value || null,
     transcription_provider: document.getElementById('settingsTranscriptionProvider').value || 'aws',
@@ -922,8 +925,9 @@ const WIZARD_TOTAL_STEPS = 4;
 
 async function initWizard() {
   const config = await invoke('get_config');
-  // Show wizard if setup not complete AND no API key configured
-  if (!config.setup_complete && !config.claude_api_key && !config.openai_api_key) {
+  const hasKey = config.claude_api_key || config.openai_api_key || config.ai_provider === 'claude-cli';
+  // Show wizard if setup not complete AND no usable AI provider configured
+  if (!config.setup_complete && !hasKey) {
     await populateWizardAudio();
     showWizardStep(1);
     document.getElementById('wizardOverlay').hidden = false;
@@ -977,12 +981,22 @@ function buildWizardSummary() {
   const provider = document.querySelector('input[name="wizardProvider"]:checked')?.value || 'claude';
   const tx = document.querySelector('input[name="wizardTranscription"]:checked')?.value || 'aws';
   const audioSrcs = [...document.querySelectorAll('[data-wizard-audio]:checked')].map(c => c.closest('label').querySelector('span').textContent);
+  const providerLabel = { claude: 'Claude (API key)', 'claude-cli': 'Claude CLI', openai: 'OpenAI' }[provider] || provider;
   const ul = document.getElementById('wizardSummary');
   ul.innerHTML = `
-    <li>AI provider: <strong>${provider === 'claude' ? 'Claude' : 'OpenAI'}</strong></li>
+    <li>AI provider: <strong>${providerLabel}</strong></li>
     <li>Transcription: <strong>${tx === 'aws' ? 'AWS Transcribe' : 'Whisper (local)'}</strong></li>
     <li>Audio: <strong>${audioSrcs.join(', ') || 'None selected'}</strong></li>
   `;
+}
+
+function wizardProviderChanged() {
+  const provider = document.querySelector('input[name="wizardProvider"]:checked')?.value || 'claude';
+  const isCli = provider === 'claude-cli';
+  document.getElementById('wizardApiKeySection').style.display = isCli ? 'none' : '';
+  document.getElementById('wizardCliSection').style.display = isCli ? '' : 'none';
+  document.getElementById('wizardConnectionStatus').textContent = '';
+  document.getElementById('wizardConnectionStatus').className = 'wizard-status';
 }
 
 async function wizardNext() {
@@ -991,20 +1005,23 @@ async function wizardNext() {
     return;
   }
 
-  // Step 1 validation: must have an API key entered
+  // Step 1 validation: must have an API key entered (unless using CLI)
   if (wizardCurrentStep === 1) {
-    const key = document.getElementById('wizardApiKey').value.trim();
-    if (!key) {
-      document.getElementById('wizardConnectionStatus').textContent = 'Enter an API key to continue.';
-      document.getElementById('wizardConnectionStatus').className = 'wizard-status error';
-      return;
-    }
-    // Save provider + key to config before proceeding
     const provider = document.querySelector('input[name="wizardProvider"]:checked').value;
     const config = await invoke('get_config');
-    if (provider === 'claude') config.claude_api_key = key;
-    else config.openai_api_key = key;
-    config.ai_provider = provider;
+    if (provider === 'claude-cli') {
+      config.ai_provider = 'claude-cli';
+    } else {
+      const key = document.getElementById('wizardApiKey').value.trim();
+      if (!key) {
+        document.getElementById('wizardConnectionStatus').textContent = 'Enter an API key to continue.';
+        document.getElementById('wizardConnectionStatus').className = 'wizard-status error';
+        return;
+      }
+      if (provider === 'claude') config.claude_api_key = key;
+      else config.openai_api_key = key;
+      config.ai_provider = provider;
+    }
     await invoke('save_config', { config });
   }
 
@@ -1028,18 +1045,29 @@ function wizardBack() {
 }
 
 async function wizardTestConnection() {
-  const key = document.getElementById('wizardApiKey').value.trim();
-  if (!key) return;
   const provider = document.querySelector('input[name="wizardProvider"]:checked').value;
   const statusEl = document.getElementById('wizardConnectionStatus');
-  const btn = document.getElementById('wizardTestBtn');
+  const btn = provider === 'claude-cli'
+    ? document.getElementById('wizardTestCliBtn')
+    : document.getElementById('wizardTestBtn');
 
-  // Temporarily save key so test_ai_connection can read it from config
+  if (provider !== 'claude-cli') {
+    const key = document.getElementById('wizardApiKey').value.trim();
+    if (!key) return;
+  }
+
+  // Save provider + key so test_ai_connection can read from config
   const config = await invoke('get_config');
-  const origKey = provider === 'claude' ? config.claude_api_key : config.openai_api_key;
-  if (provider === 'claude') config.claude_api_key = key;
-  else config.openai_api_key = key;
-  config.ai_provider = provider;
+  let origKey = null;
+  if (provider === 'claude-cli') {
+    config.ai_provider = 'claude-cli';
+  } else {
+    const key = document.getElementById('wizardApiKey').value.trim();
+    origKey = provider === 'claude' ? config.claude_api_key : config.openai_api_key;
+    if (provider === 'claude') config.claude_api_key = key;
+    else config.openai_api_key = key;
+    config.ai_provider = provider;
+  }
   await invoke('save_config', { config });
 
   btn.disabled = true;
@@ -1053,11 +1081,13 @@ async function wizardTestConnection() {
   } catch (e) {
     statusEl.textContent = `✗ ${e}`;
     statusEl.className = 'wizard-status error';
-    // Restore original key on failure
-    const cfg = await invoke('get_config');
-    if (provider === 'claude') cfg.claude_api_key = origKey;
-    else cfg.openai_api_key = origKey;
-    await invoke('save_config', { config: cfg });
+    // Restore original key on failure (not applicable for CLI)
+    if (provider !== 'claude-cli') {
+      const cfg = await invoke('get_config');
+      if (provider === 'claude') cfg.claude_api_key = origKey;
+      else cfg.openai_api_key = origKey;
+      await invoke('save_config', { config: cfg });
+    }
   } finally {
     btn.disabled = false;
   }

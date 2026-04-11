@@ -736,6 +736,40 @@ async fn call_llm_api(prompt: &str) -> Result<String, NoteGenError> {
     let cfg = crate::config::AppConfig::get();
 
     match cfg.ai_provider.as_str() {
+        "claude-cli" => {
+            use tokio::io::AsyncWriteExt;
+
+            let cli_path = cfg.claude_cli_path.as_deref().unwrap_or("claude").to_string();
+            tracing::debug!("Calling Claude CLI (path={cli_path})");
+
+            let mut child = tokio::process::Command::new(&cli_path)
+                .arg("-p")
+                .stdin(std::process::Stdio::piped())
+                .stdout(std::process::Stdio::piped())
+                .stderr(std::process::Stdio::piped())
+                .spawn()
+                .map_err(|e| NoteGenError::ApiError(
+                    format!("Failed to launch claude CLI at '{cli_path}': {e}. Make sure the Claude CLI is installed and in your PATH.")
+                ))?;
+
+            if let Some(mut stdin) = child.stdin.take() {
+                stdin.write_all(prompt.as_bytes()).await
+                    .map_err(|e| NoteGenError::ApiError(format!("Failed to write prompt to claude CLI: {e}")))?;
+            }
+
+            let output = child.wait_with_output().await
+                .map_err(|e| NoteGenError::ApiError(format!("Claude CLI process error: {e}")))?;
+
+            if !output.status.success() {
+                let stderr = String::from_utf8_lossy(&output.stderr);
+                return Err(NoteGenError::ApiError(format!("Claude CLI exited with error: {stderr}")));
+            }
+
+            let text = String::from_utf8(output.stdout)
+                .map_err(|e| NoteGenError::ApiError(format!("Invalid UTF-8 in claude CLI output: {e}")))?;
+
+            Ok(text.trim().to_string())
+        }
         "openai" => {
             let api_key = cfg.openai_api_key.as_ref()
                 .ok_or_else(|| NoteGenError::ApiError(

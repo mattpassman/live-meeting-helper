@@ -436,6 +436,21 @@ pub async fn test_ai_connection() -> Result<String, String> {
     let config = AppConfig::get();
     let client = reqwest::Client::new();
     match config.ai_provider.as_str() {
+        "claude-cli" => {
+            let cli_path = config.claude_cli_path.as_deref().unwrap_or("claude").to_string();
+            let output = tokio::process::Command::new(&cli_path)
+                .arg("-p")
+                .arg("hi")
+                .output()
+                .await
+                .map_err(|e| format!("Failed to launch claude CLI at '{cli_path}': {e}. Make sure the Claude CLI is installed and in your PATH."))?;
+            if output.status.success() {
+                Ok("Claude CLI".into())
+            } else {
+                let stderr = String::from_utf8_lossy(&output.stderr);
+                Err(format!("Claude CLI error: {stderr}"))
+            }
+        }
         "openai" => {
             let key = config.openai_api_key.ok_or("No OpenAI API key set")?;
             let res = client
