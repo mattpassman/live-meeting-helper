@@ -1,6 +1,8 @@
 pub mod capture;
 #[cfg(target_os = "windows")]
 pub mod loopback_win;
+#[cfg(target_os = "macos")]
+pub mod loopback_mac;
 
 pub use crate::types::AudioSource;
 

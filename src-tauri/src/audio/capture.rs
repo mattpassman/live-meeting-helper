@@ -22,6 +22,9 @@ pub struct AudioCaptureHandle {
     paused: Arc<AtomicBool>,
     stop_flag: Arc<AtomicBool>,
     thread: Option<std::thread::JoinHandle<()>>,
+    /// macOS ScreenCaptureKit loopback session (Some when system audio is active)
+    #[cfg(target_os = "macos")]
+    loopback: Option<super::loopback_mac::MacLoopbackHandle>,
 }
 
 /// List all available audio input devices. Returns (name, is_default) pairs.
@@ -97,12 +100,33 @@ impl AudioCaptureHandle {
             }
         }
 
-        #[cfg(not(target_os = "windows"))]
+        // ── macOS: ScreenCaptureKit loopback ──────────────────────────────────
+        #[cfg(target_os = "macos")]
+        let loopback = {
+            if source == AudioSource::SystemAudio || source == AudioSource::Both {
+                match super::loopback_mac::MacLoopbackHandle::start(tx.clone()) {
+                    Ok(h) => Some(h),
+                    Err(e) => {
+                        tracing::error!("macOS system audio loopback: {e}");
+                        if source == AudioSource::SystemAudio {
+                            return Err(AudioCaptureError::Other(e));
+                        }
+                        // Both: continue mic-only
+                        None
+                    }
+                }
+            } else {
+                None
+            }
+        };
+
+        // ── Other non-Windows platforms: unsupported ─────────────────────────
+        #[cfg(not(any(target_os = "windows", target_os = "macos")))]
         {
             if source == AudioSource::SystemAudio {
                 tracing::error!("System audio loopback not supported on this platform");
                 return Err(AudioCaptureError::Other(
-                    "System audio loopback requires Windows".to_string(),
+                    "System audio loopback is only supported on Windows and macOS".to_string(),
                 ));
             }
             if source == AudioSource::Both {
@@ -118,21 +142,30 @@ impl AudioCaptureHandle {
             paused,
             stop_flag,
             thread,
+            #[cfg(target_os = "macos")]
+            loopback,
         })
     }
 
     pub fn pause(&self) {
         self.paused.store(true, Ordering::Relaxed);
         self.state.store(STATE_PAUSED, Ordering::Relaxed);
+        #[cfg(target_os = "macos")]
+        super::loopback_mac::LOOPBACK_PAUSED.store(true, std::sync::atomic::Ordering::Relaxed);
     }
 
     pub fn resume(&self) {
         self.paused.store(false, Ordering::Relaxed);
         self.state.store(STATE_CAPTURING, Ordering::Relaxed);
+        #[cfg(target_os = "macos")]
+        super::loopback_mac::LOOPBACK_PAUSED.store(false, std::sync::atomic::Ordering::Relaxed);
     }
 
     pub fn stop(&mut self) {
         self.stop_flag.store(true, Ordering::Relaxed);
+        // Drop the macOS loopback first so SCStream stops before we join the mic thread
+        #[cfg(target_os = "macos")]
+        drop(self.loopback.take());
         if let Some(t) = self.thread.take() {
             let _ = t.join();
         }
