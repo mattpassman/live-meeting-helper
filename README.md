@@ -7,11 +7,11 @@ Live Meeting Helper is a desktop app that listens to your meetings and writes yo
 | Platform | Download |
 |----------|----------|
 | macOS (Apple Silicon) | [Live.Meeting.Helper_0.1.0_aarch64.dmg](https://github.com/mattpassman/live-meeting-helper/releases/download/v0.1.0/Live.Meeting.Helper_0.1.0_aarch64.dmg) |
-| Windows 10/11 | [Live Meeting Helper_0.1.0_x64-setup.exe](https://github.com/mattpassman/live-meeting-helper/releases/download/v0.1.0/Live%20Meeting%20Helper_0.1.0_x64-setup.exe) |
-| Linux (Ubuntu 20.04+ / Debian) | [Live Meeting Helper_0.1.0_amd64.deb](https://github.com/mattpassman/live-meeting-helper/releases/download/v0.1.0/Live%20Meeting%20Helper_0.1.0_amd64.deb) |
-| Linux (other distros) | [Live Meeting Helper_0.1.0_amd64.AppImage](https://github.com/mattpassman/live-meeting-helper/releases/download/v0.1.0/Live%20Meeting%20Helper_0.1.0_amd64.AppImage) |
+| Windows 10/11 | [Live.Meeting.Helper_0.1.0_x64-setup.exe](https://github.com/mattpassman/live-meeting-helper/releases/download/v0.1.0/Live.Meeting.Helper_0.1.0_x64-setup.exe) |
+| Linux (Ubuntu 20.04+ / Debian) | [Live.Meeting.Helper_0.1.0_amd64.deb](https://github.com/mattpassman/live-meeting-helper/releases/download/v0.1.0/Live.Meeting.Helper_0.1.0_amd64.deb) |
+| Linux (other distros) | [Live.Meeting.Helper_0.1.0_amd64.AppImage](https://github.com/mattpassman/live-meeting-helper/releases/download/v0.1.0/Live.Meeting.Helper_0.1.0_amd64.AppImage) |
 
-Also available: [Windows MSI](https://github.com/mattpassman/live-meeting-helper/releases/download/v0.1.0/Live%20Meeting%20Helper_0.1.0_x64_en-US.msi) · [Linux RPM](https://github.com/mattpassman/live-meeting-helper/releases/download/v0.1.0/Live%20Meeting%20Helper-0.1.0-1.x86_64.rpm) · [All releases](https://github.com/mattpassman/live-meeting-helper/releases)
+Also available: [Windows MSI](https://github.com/mattpassman/live-meeting-helper/releases/download/v0.1.0/Live.Meeting.Helper_0.1.0_x64_en-US.msi) · [Linux RPM](https://github.com/mattpassman/live-meeting-helper/releases/download/v0.1.0/Live.Meeting.Helper-0.1.0-1.x86_64.rpm) · [All releases](https://github.com/mattpassman/live-meeting-helper/releases)
 
 ## Quick Start (No build required)
 
