@@ -95,8 +95,11 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            windows-installers/**/*
-            linux-installers/**/*
+            windows-installers/**/*.msi
+            windows-installers/**/*.exe
+            linux-installers/**/*.deb
+            linux-installers/**/*.rpm
+            linux-installers/**/*.AppImage
           draft: true
           generate_release_notes: true
           token: ${{ secrets.GITHUB_TOKEN }}
