@@ -13,6 +13,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Install cmake
+        uses: jwlawson/actions-setup-cmake@v2
+        with:
+          cmake-version: "3.28"
+
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
@@ -24,8 +29,8 @@ jobs:
       - name: Install npm dependencies
         run: npm install
 
-      - name: Build Windows (no Whisper to avoid cmake dependency)
-        run: cargo tauri build --no-default-features --features app
+      - name: Build Windows (full build including Whisper)
+        run: cargo tauri build
 
       - name: Upload Windows installers
         uses: actions/upload-artifact@v4

@@ -4,15 +4,15 @@ Live Meeting Helper is a desktop app that listens to your meetings and writes yo
 
 ## Download
 
-v0.1.0 is the first release. Installers are available on the Releases page. macOS builds are uploaded manually by the maintainer.
+v0.1.0 is the first release. macOS builds are uploaded manually by the maintainer.
 
 | Platform | Download |
 |----------|----------|
-| macOS (Apple Silicon) | See Releases page |
-| macOS (Intel) | See Releases page |
-| Windows 10/11 | See Releases page |
-| Linux (Ubuntu 20.04+ / Debian) | See Releases page |
-| Linux (AppImage) | See Releases page |
+| macOS (Apple Silicon) | [Releases page](https://github.com/mattpassman/live-meeting-helper/releases/latest) |
+| macOS (Intel) | [Releases page](https://github.com/mattpassman/live-meeting-helper/releases/latest) |
+| Windows 10/11 | [Releases page](https://github.com/mattpassman/live-meeting-helper/releases/latest) |
+| Linux (Ubuntu 20.04+ / Debian) | [Releases page](https://github.com/mattpassman/live-meeting-helper/releases/latest) |
+| Linux (AppImage) | [Releases page](https://github.com/mattpassman/live-meeting-helper/releases/latest) |
 
 ## Quick Start (No build required)
 
