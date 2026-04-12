@@ -737,14 +737,10 @@ async fn call_llm_api(prompt: &str) -> Result<String, NoteGenError> {
 
     match cfg.ai_provider.as_str() {
         "claude-cli" => {
-            use tokio::io::AsyncWriteExt;
-
             let cli_path = cfg.claude_cli_path.as_deref().unwrap_or("claude").to_string();
             tracing::debug!("Calling Claude CLI (path={cli_path})");
 
-            // macOS app bundles don't inherit the user's shell PATH, so common
-            // install locations like /usr/local/bin and /opt/homebrew/bin are
-            // missing. Build an expanded PATH so `claude` can be found.
+            // macOS app bundles don't inherit the user's shell PATH.
             let base_path = std::env::var("PATH").unwrap_or_default();
             let home = std::env::var("HOME").unwrap_or_default();
             let expanded_path = format!(
@@ -752,34 +748,59 @@ async fn call_llm_api(prompt: &str) -> Result<String, NoteGenError> {
                  /usr/bin:/bin:/usr/sbin:/sbin:{home}/.local/bin:{home}/.npm-global/bin"
             );
 
-            let mut child = tokio::process::Command::new(&cli_path)
-                .arg("-p")
-                .env("PATH", &expanded_path)
-                .stdin(std::process::Stdio::piped())
-                .stdout(std::process::Stdio::piped())
-                .stderr(std::process::Stdio::piped())
-                .spawn()
-                .map_err(|e| NoteGenError::ApiError(
-                    format!("Failed to launch claude CLI at '{cli_path}': {e}. Make sure the Claude CLI is installed and in your PATH.")
-                ))?;
-
-            if let Some(mut stdin) = child.stdin.take() {
-                stdin.write_all(prompt.as_bytes()).await
-                    .map_err(|e| NoteGenError::ApiError(format!("Failed to write prompt to claude CLI: {e}")))?;
+            // On macOS, use posix_spawn with responsibility_spawnattrs_setdisclaim so
+            // that TCC prompts (Photos, Desktop, Downloads…) are attributed to the
+            // Claude CLI's own bundle ID (com.anthropic.claude-code) rather than to
+            // Live Meeting Helper. This is exactly what Terminal.app does before
+            // forking a shell. On other platforms fall back to the standard path.
+            #[cfg(target_os = "macos")]
+            {
+                let prompt_owned = prompt.to_string();
+                let cli_path_owned = cli_path.clone();
+                let ep_owned = expanded_path.clone();
+                let result = tokio::task::spawn_blocking(move || {
+                    crate::notes::spawn_mac::run_claude_disclaimed(
+                        &cli_path_owned,
+                        &prompt_owned,
+                        &ep_owned,
+                    )
+                })
+                .await
+                .map_err(|e| NoteGenError::ApiError(format!("spawn_blocking error: {e}")))?
+                .map_err(|e| NoteGenError::ApiError(e))?;
+                return Ok(result);
             }
 
-            let output = child.wait_with_output().await
-                .map_err(|e| NoteGenError::ApiError(format!("Claude CLI process error: {e}")))?;
+            // Non-macOS path (also compiles on macOS when cfg is not matched,
+            // but the #[cfg] block above returns early so this is unreachable there).
+            #[allow(unreachable_code)]
+            {
+                use tokio::io::AsyncWriteExt;
+                let mut child = tokio::process::Command::new(&cli_path)
+                    .arg("-p")
+                    .env("PATH", &expanded_path)
+                    .stdin(std::process::Stdio::piped())
+                    .stdout(std::process::Stdio::piped())
+                    .stderr(std::process::Stdio::piped())
+                    .spawn()
+                    .map_err(|e| NoteGenError::ApiError(
+                        format!("Failed to launch claude CLI at '{cli_path}': {e}.")
+                    ))?;
 
-            if !output.status.success() {
-                let stderr = String::from_utf8_lossy(&output.stderr);
-                return Err(NoteGenError::ApiError(format!("Claude CLI exited with error: {stderr}")));
+                if let Some(mut stdin) = child.stdin.take() {
+                    stdin.write_all(prompt.as_bytes()).await
+                        .map_err(|e| NoteGenError::ApiError(format!("stdin write: {e}")))?;
+                }
+                let output = child.wait_with_output().await
+                    .map_err(|e| NoteGenError::ApiError(format!("claude CLI error: {e}")))?;
+                if !output.status.success() {
+                    let stderr = String::from_utf8_lossy(&output.stderr);
+                    return Err(NoteGenError::ApiError(format!("claude CLI exited with error: {stderr}")));
+                }
+                let text = String::from_utf8(output.stdout)
+                    .map_err(|e| NoteGenError::ApiError(format!("invalid UTF-8: {e}")))?;
+                Ok(text.trim().to_string())
             }
-
-            let text = String::from_utf8(output.stdout)
-                .map_err(|e| NoteGenError::ApiError(format!("Invalid UTF-8 in claude CLI output: {e}")))?;
-
-            Ok(text.trim().to_string())
         }
         "openai" => {
             let api_key = cfg.openai_api_key.as_ref()

@@ -1,6 +1,8 @@
 pub mod corrections;
 pub mod generator;
 pub mod prompts;
+#[cfg(target_os = "macos")]
+pub mod spawn_mac;
 
 pub use corrections::Correction;
 pub use generator::NotesUpdate;
