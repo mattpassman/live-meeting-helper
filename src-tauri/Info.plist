@@ -8,6 +8,11 @@
     <key>NSMicrophoneUsageDescription</key>
     <string>Live Meeting Helper records your microphone to transcribe and generate meeting notes.</string>
 
+    <!-- Photos — triggered by the Claude CLI subprocess; TCC attributes child process
+         accesses to the parent app on macOS. -->
+    <key>NSPhotoLibraryUsageDescription</key>
+    <string>Live Meeting Helper does not use your Photo Library directly. This access is requested by the Claude CLI helper process that generates meeting notes.</string>
+
     <!-- File system access — triggered when the system file picker is shown or when
          AWS credential files happen to live on a network-mounted home directory. -->
     <key>NSDesktopFolderUsageDescription</key>
