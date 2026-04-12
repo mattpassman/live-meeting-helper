@@ -231,10 +231,9 @@ pub async fn save_session_file(
     };
     let filename = format!("{safe_title}_{timestamp}.{extension}");
 
-    // Choose save directory: Desktop > Documents > current dir
-    let save_dir = dirs::desktop_dir()
-        .or_else(dirs::document_dir)
-        .unwrap_or_else(|| std::path::PathBuf::from("."));
+    // Save to app's Application Support directory — no TCC prompt needed.
+    let save_dir = crate::paths::data_local_dir().join("exports");
+    std::fs::create_dir_all(&save_dir).map_err(|e| e.to_string())?;
 
     let file_path = save_dir.join(&filename);
     std::fs::write(&file_path, text).map_err(|e| e.to_string())?;

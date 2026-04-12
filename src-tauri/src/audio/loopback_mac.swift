@@ -6,7 +6,6 @@
 import Foundation
 import CoreAudio
 import AudioToolbox
-import AVFoundation
 
 // Must be public so the @_cdecl exports can use it without visibility errors.
 public typealias AudioDataCallback = @convention(c) (UnsafePointer<Int16>?, Int32, UInt64) -> Void
@@ -142,45 +141,54 @@ private func doStart(
     let nCh     = Int(max(1, tapFmt.mChannelsPerFrame))
     NSLog("[LiveMeeting] Tap format: %.0f Hz %d ch", srcRate, nCh)
 
-    // Build AVAudioFormat for bufferListNoCopy wrapping in the IO proc.
-    var mutableFmt = tapFmt
-    guard let srcAVFormat = AVAudioFormat(streamDescription: &mutableFmt) else {
-        AudioHardwareDestroyAggregateDevice(deviceID); gDeviceID = kAudioObjectUnknown
-        AudioHardwareDestroyProcessTap(tapID);         gTapID    = kAudioObjectUnknown
-        writeErr("Failed to create AVAudioFormat from tap description", to: errBuf, len: errLen)
-        return false
-    }
-
     // ── 6. Install IO proc ────────────────────────────────────────────────────
+    // Capture nCh/srcRate in the closure; no AVFoundation needed.
+    let closureNCh   = nCh
+    let closureRate  = srcRate
+
     var procID: AudioDeviceIOProcID? = nil
     let ioErr = AudioDeviceCreateIOProcIDWithBlock(&procID, deviceID, nil) {
         _, inInputData, _, _, _ in
 
-        // Wrap the CoreAudio buffer list in an AVAudioPCMBuffer (no copy).
-        guard let avBuf = AVAudioPCMBuffer(
-            pcmFormat: srcAVFormat,
-            bufferListNoCopy: inInputData,
-            deallocator: nil
-        ),
-        let floatData = avBuf.floatChannelData,
-        avBuf.frameLength > 0 else { return }
+        // Access Float32 samples directly from the CoreAudio AudioBufferList.
+        // The tap delivers non-interleaved (one buffer per channel) or mono Float32 PCM.
+        // UnsafeMutableAudioBufferListPointer handles the variable-length mBuffers array.
+        let ablPtr = UnsafeMutableAudioBufferListPointer(UnsafeMutablePointer(mutating: inInputData))
+        let nBufs  = ablPtr.count
+        guard nBufs > 0 else { return }
 
-        let nFrames = Int(avBuf.frameLength)
-        let chCount = Int(avBuf.format.channelCount)
+        // Compute frame count from the first buffer.
+        let firstBuf = ablPtr[0]
+        guard let firstData = firstBuf.mData, firstBuf.mDataByteSize > 0 else { return }
+        let nFrames = Int(firstBuf.mDataByteSize) / MemoryLayout<Float32>.size
+        guard nFrames > 0 else { return }
 
         // Downmix to mono Float32.
-        // floatChannelData is always channel-deinterleaved regardless of the
-        // source format, so floatData[c][i] is safe for both interleaved and
-        // non-interleaved tap formats.
         var mono = [Float32](repeating: 0, count: nFrames)
-        for i in 0..<nFrames {
-            var s: Float32 = 0
-            for c in 0..<chCount { s += floatData[c][i] }
-            mono[i] = s / Float32(chCount)
+        if nBufs >= closureNCh && closureNCh > 1 {
+            // Non-interleaved: one buffer per channel.
+            for c in 0..<closureNCh {
+                guard let ptr = ablPtr[c].mData else { continue }
+                let ch = ptr.assumingMemoryBound(to: Float32.self)
+                for i in 0..<nFrames { mono[i] += ch[i] }
+            }
+            let scale = 1.0 / Float32(closureNCh)
+            for i in 0..<nFrames { mono[i] *= scale }
+        } else {
+            // Interleaved (or already mono): all samples in one buffer.
+            let ch   = firstData.assumingMemoryBound(to: Float32.self)
+            let total = Int(firstBuf.mDataByteSize) / MemoryLayout<Float32>.size
+            let nChI = max(1, total / nFrames)
+            let scale = 1.0 / Float32(nChI)
+            for i in 0..<nFrames {
+                var s: Float32 = 0
+                for c in 0..<nChI { s += ch[i * nChI + c] }
+                mono[i] = s * scale
+            }
         }
 
         // Resample from native tap rate → 16 kHz via linear interpolation.
-        let ratio  = srcRate / 16_000.0
+        let ratio  = closureRate / 16_000.0
         let outLen = max(1, Int(Double(nFrames) / ratio))
         var pcm    = [Int16](repeating: 0, count: outLen)
         for i in 0..<outLen {

@@ -63,7 +63,6 @@ fn compile_macos_loopback() {
     // CoreAudio tap APIs (always present on macOS, new APIs added in 14.4)
     println!("cargo:rustc-link-lib=framework=CoreAudio");
     println!("cargo:rustc-link-lib=framework=AudioToolbox");
-    println!("cargo:rustc-link-lib=framework=AVFoundation");
     println!("cargo:rustc-link-lib=framework=Foundation");
 
     // Swift runtime (embedded in macOS 12+)
