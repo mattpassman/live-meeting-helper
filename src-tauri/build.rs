@@ -30,10 +30,10 @@ fn compile_macos_loopback() {
     // Target triple: match Rust's target architecture
     let arch = std::env::var("CARGO_CFG_TARGET_ARCH").unwrap_or_else(|_| "aarch64".into());
     let swift_arch = if arch == "aarch64" { "arm64" } else { "x86_64" };
-    // Target macOS 13.0 — matches the SCStreamOutputType.audio requirement.
-    // The Rust binary's overall deployment target is set by Cargo/Tauri; only
-    // the Swift loopback code requires 13.0 (gracefully returns false on older macOS).
-    let swift_target = format!("{}-apple-macos13.0", swift_arch);
+    // Target macOS 14.4 — required for CATapDescription / AudioHardwareCreateProcessTap.
+    // The @_cdecl functions guard with #available(macOS 14.4, *) so the binary
+    // loads on older macOS and returns a clear error instead of crashing.
+    let swift_target = format!("{}-apple-macos14.4", swift_arch);
 
     // Compile Swift → object file
     let status = std::process::Command::new("swiftc")
@@ -60,12 +60,10 @@ fn compile_macos_loopback() {
     println!("cargo:rustc-link-search=native={}", out_dir);
     println!("cargo:rustc-link-lib=static=loopback_mac");
 
-    // ScreenCaptureKit is weak-linked so the app still loads on macOS < 12.3
-    println!("cargo:rustc-link-arg=-weak_framework");
-    println!("cargo:rustc-link-arg=ScreenCaptureKit");
-
-    // CoreMedia and Foundation are always present on macOS
-    println!("cargo:rustc-link-lib=framework=CoreMedia");
+    // CoreAudio tap APIs (always present on macOS, new APIs added in 14.4)
+    println!("cargo:rustc-link-lib=framework=CoreAudio");
+    println!("cargo:rustc-link-lib=framework=AudioToolbox");
+    println!("cargo:rustc-link-lib=framework=AVFoundation");
     println!("cargo:rustc-link-lib=framework=Foundation");
 
     // Swift runtime (embedded in macOS 12+)

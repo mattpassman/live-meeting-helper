@@ -7,7 +7,12 @@ use super::{AudioChunk, AudioSource};
 // ── FFI declarations (compiled from loopback_mac.swift via build.rs) ────────
 
 extern "C" {
-    fn mac_loopback_start(callback: extern "C" fn(*const i16, i32, u64)) -> bool;
+    /// Returns true on success. On failure writes a UTF-8 error into err_buf.
+    fn mac_loopback_start(
+        callback: extern "C" fn(*const i16, i32, u64),
+        err_buf: *mut std::os::raw::c_char,
+        err_len: i32,
+    ) -> bool;
     fn mac_loopback_stop();
 }
 
@@ -56,18 +61,27 @@ impl MacLoopbackHandle {
         *global.lock().unwrap() = Some(tx);
         LOOPBACK_PAUSED.store(false, Ordering::Relaxed);
 
-        let ok = unsafe { mac_loopback_start(audio_callback) };
+        let mut err_buf = [0i8; 512];
+        let ok = unsafe {
+            mac_loopback_start(audio_callback, err_buf.as_mut_ptr(), err_buf.len() as i32)
+        };
+
         if ok {
             tracing::info!("macOS system audio loopback started via ScreenCaptureKit");
             Ok(Self)
         } else {
             *global.lock().unwrap() = None;
-            Err(
-                "System audio capture failed. \
-                 Grant Screen Recording permission in System Settings → Privacy & Security → Screen Recording, \
-                 then restart the app."
-                    .into(),
-            )
+            // Surface the actual Swift error into the Rust log
+            let msg = unsafe { std::ffi::CStr::from_ptr(err_buf.as_ptr()) }
+                .to_string_lossy()
+                .into_owned();
+            let msg = if msg.is_empty() {
+                "Unknown error from ScreenCaptureKit".to_string()
+            } else {
+                msg
+            };
+            tracing::error!("mac_loopback_start Swift error: {msg}");
+            Err(msg)
         }
     }
 }
