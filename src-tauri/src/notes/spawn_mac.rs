@@ -35,6 +35,10 @@ pub fn run_claude_disclaimed(
     let path_c =
         CString::new(cli_path).map_err(|e| format!("invalid cli path: {e}"))?;
     let arg_p = CString::new("-p").unwrap();
+    // posix_spawn does NOT do PATH lookup (unlike execvp). Use /usr/bin/env as
+    // the executable — it always lives at that fixed path and performs lookup
+    // using the PATH we inject into the child environment.
+    let env_exec = CString::new("/usr/bin/env").unwrap();
 
     // Build environment: inherit everything, override PATH.
     let mut env_strings: Vec<CString> = std::env::vars()
@@ -43,7 +47,9 @@ pub fn run_claude_disclaimed(
         .collect();
     env_strings.push(CString::new(format!("PATH={expanded_path}")).unwrap());
 
+    // argv: ["/usr/bin/env", "claude", "-p", NULL]
     let argv_ptrs: Vec<*const libc::c_char> = vec![
+        env_exec.as_ptr(),
         path_c.as_ptr(),
         arg_p.as_ptr(),
         std::ptr::null(),
@@ -104,7 +110,7 @@ pub fn run_claude_disclaimed(
         let mut pid: libc::pid_t = 0;
         let rc = libc::posix_spawn(
             &mut pid,
-            path_c.as_ptr(),
+            env_exec.as_ptr(),
             &fa,
             &sa,
             argv_ptrs.as_ptr() as *mut *mut libc::c_char,

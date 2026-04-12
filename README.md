@@ -6,12 +6,12 @@ Live Meeting Helper is a desktop app that listens to your meetings and writes yo
 
 | Platform | Download |
 |----------|----------|
-| macOS (M1/M2/M3/M4) | [Live.Meeting.Helper_0.1.0_aarch64.dmg](https://github.com/mattpassman/live-meeting-helper/releases/download/v0.1.0/Live.Meeting.Helper_0.1.0_aarch64.dmg) |
-| Windows 10/11 | [Live.Meeting.Helper_0.1.0_x64-setup.exe](https://github.com/mattpassman/live-meeting-helper/releases/download/v0.1.0/Live.Meeting.Helper_0.1.0_x64-setup.exe) |
-| Linux (Ubuntu 20.04+ / Debian) | [Live.Meeting.Helper_0.1.0_amd64.deb](https://github.com/mattpassman/live-meeting-helper/releases/download/v0.1.0/Live.Meeting.Helper_0.1.0_amd64.deb) |
-| Linux (other distros) | [Live.Meeting.Helper_0.1.0_amd64.AppImage](https://github.com/mattpassman/live-meeting-helper/releases/download/v0.1.0/Live.Meeting.Helper_0.1.0_amd64.AppImage) |
+| macOS (M1/M2/M3/M4) | [Live.Meeting.Helper_0.2.0_aarch64.dmg](https://github.com/mattpassman/live-meeting-helper/releases/download/v0.2.0/Live.Meeting.Helper_0.2.0_aarch64.dmg) |
+| Windows 10/11 | [Live.Meeting.Helper_0.2.0_x64-setup.exe](https://github.com/mattpassman/live-meeting-helper/releases/download/v0.2.0/Live.Meeting.Helper_0.2.0_x64-setup.exe) |
+| Linux (Ubuntu 20.04+ / Debian) | [Live.Meeting.Helper_0.2.0_amd64.deb](https://github.com/mattpassman/live-meeting-helper/releases/download/v0.2.0/Live.Meeting.Helper_0.2.0_amd64.deb) |
+| Linux (other distros) | [Live.Meeting.Helper_0.2.0_amd64.AppImage](https://github.com/mattpassman/live-meeting-helper/releases/download/v0.2.0/Live.Meeting.Helper_0.2.0_amd64.AppImage) |
 
-Also available: [Windows MSI](https://github.com/mattpassman/live-meeting-helper/releases/download/v0.1.0/Live.Meeting.Helper_0.1.0_x64_en-US.msi) · [Linux RPM](https://github.com/mattpassman/live-meeting-helper/releases/download/v0.1.0/Live.Meeting.Helper-0.1.0-1.x86_64.rpm) · [All releases](https://github.com/mattpassman/live-meeting-helper/releases)
+Also available: [Windows MSI](https://github.com/mattpassman/live-meeting-helper/releases/download/v0.2.0/Live.Meeting.Helper_0.2.0_x64_en-US.msi) · [Linux RPM](https://github.com/mattpassman/live-meeting-helper/releases/download/v0.2.0/Live.Meeting.Helper-0.2.0-1.x86_64.rpm) · [All releases](https://github.com/mattpassman/live-meeting-helper/releases)
 
 ## Quick Start
 
@@ -25,7 +25,7 @@ Also available: [Windows MSI](https://github.com/mattpassman/live-meeting-helper
 - **Live, structured notes generated automatically as you speak** — no manual summarizing after the fact
 - **Captures everyone on the call** — records both your microphone and system audio, so remote participants are included too
 - **Transcript saved with each session for reference** — review what was said alongside your generated notes
-- **Works with the AI you already have** — bring your own Claude or OpenAI API key; no subscription to a new service required
+- **Works with the AI you already have** — bring your own Claude or OpenAI API key, or use the Claude CLI if you have a Claude Pro/Max/Team plan (no separate API key needed)
 - **Full session history** — past meetings are saved automatically, and nothing is lost if the app closes unexpectedly
 - **Stays out of your way** — runs quietly in the background during meetings and only surfaces when you need it
 - **Local transcription option** — enable local Whisper transcription in Settings to keep audio on your machine; note that transcript text is still sent to your AI provider to generate notes
@@ -39,6 +39,11 @@ macOS 13+ (Apple Silicon), Windows 10/11, Linux (Ubuntu 20.04+)
 
 **Claude (default and recommended)**
 Go to [console.anthropic.com](https://console.anthropic.com), create an account, and generate an API key. Claude is the default because it produces especially clear and well-structured meeting notes. A paid account is recommended for regular use — the free tier has rate limits that may interrupt longer meetings.
+
+**Claude via CLI (no API key needed)**
+If you have a Claude Pro, Max, or Team plan, you can use the [Claude CLI](https://claude.ai/download) instead of a direct API key. Select "Claude (via CLI)" in Settings. No API key is required — the CLI uses your existing Claude subscription.
+
+> **macOS note:** The Claude CLI runtime will prompt for access to Apple Music and Photos on first use. This is a side-effect of the runtime it's built on and is safe to **deny** — the app does not use either. macOS will remember your choice and won't ask again.
 
 **OpenAI**
 Go to [platform.openai.com](https://platform.openai.com), create an account, and generate an API key under the API section. Select OpenAI as your provider in Settings after launching the app. A paid account is likewise recommended for heavy use.
@@ -111,9 +116,10 @@ Key settings (configurable via the Settings UI):
 
 | Setting | Description |
 |---------|-------------|
-| AI Provider | `claude` (default) or `openai` |
-| Claude API Key | Your Anthropic API key |
+| AI Provider | `claude` (default), `claude-cli`, or `openai` |
+| Claude API Key | Your Anthropic API key (not needed when using `claude-cli`) |
 | Claude Model | Model to use (default: `claude-sonnet-4-6`) |
+| Claude CLI Path | Path to the `claude` binary (default: resolved from PATH) |
 | OpenAI API Key | Your OpenAI API key |
 | OpenAI Model | Model to use (default: `gpt-4o`) |
 | Transcription Provider | `aws` (default) or `whisper` (local) |

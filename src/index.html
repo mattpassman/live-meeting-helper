@@ -153,6 +153,9 @@
 
         <div id="claudeCliFields" style="display:none">
           <div class="hint">Uses the <strong>claude</strong> CLI already installed on your system. Works with Claude Pro, Max, and Team plans — no separate API key needed.</div>
+          <div class="hint" style="margin-top:6px;padding:8px 10px;background:var(--bg-warning,#fff8e1);border-left:3px solid var(--warning,#f0a500);border-radius:0 4px 4px 0;line-height:1.5">
+            <strong>Note:</strong> The Claude CLI runtime will request access to Apple Music and Photos on first use. These are safe to <strong>deny</strong> — the CLI does not use them. macOS will remember your choice and won't ask again.
+          </div>
           <details style="margin-top:6px">
             <summary class="hint" style="cursor:pointer">Advanced: custom CLI path</summary>
             <label style="margin-top:6px">Claude CLI path<input type="text" id="settingsClaudeCliPath" placeholder="claude (leave blank to use PATH)"></label>
