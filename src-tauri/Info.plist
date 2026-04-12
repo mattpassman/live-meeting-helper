@@ -2,9 +2,23 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+    <!-- Audio capture -->
     <key>NSAudioCaptureUsageDescription</key>
     <string>Live Meeting Helper captures system audio to transcribe and generate meeting notes.</string>
     <key>NSMicrophoneUsageDescription</key>
     <string>Live Meeting Helper records your microphone to transcribe and generate meeting notes.</string>
+
+    <!-- File system access — triggered when the system file picker is shown or when
+         AWS credential files happen to live on a network-mounted home directory. -->
+    <key>NSDesktopFolderUsageDescription</key>
+    <string>Live Meeting Helper may access Desktop when you select a document to attach to your meeting.</string>
+    <key>NSDownloadsFolderUsageDescription</key>
+    <string>Live Meeting Helper may access Downloads when you select a document to attach to your meeting.</string>
+    <key>NSDocumentsFolderUsageDescription</key>
+    <string>Live Meeting Helper may access Documents when you select a document to attach to your meeting.</string>
+    <key>NSNetworkVolumesUsageDescription</key>
+    <string>Live Meeting Helper may read configuration files (such as AWS credentials) that reside on network-mounted drives.</string>
+    <key>NSRemovableVolumesUsageDescription</key>
+    <string>Live Meeting Helper may access removable drives when you select a document to attach to your meeting.</string>
 </dict>
 </plist>
