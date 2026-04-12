@@ -742,8 +742,19 @@ async fn call_llm_api(prompt: &str) -> Result<String, NoteGenError> {
             let cli_path = cfg.claude_cli_path.as_deref().unwrap_or("claude").to_string();
             tracing::debug!("Calling Claude CLI (path={cli_path})");
 
+            // macOS app bundles don't inherit the user's shell PATH, so common
+            // install locations like /usr/local/bin and /opt/homebrew/bin are
+            // missing. Build an expanded PATH so `claude` can be found.
+            let base_path = std::env::var("PATH").unwrap_or_default();
+            let home = std::env::var("HOME").unwrap_or_default();
+            let expanded_path = format!(
+                "{base_path}:/usr/local/bin:/opt/homebrew/bin:/opt/homebrew/sbin:\
+                 /usr/bin:/bin:/usr/sbin:/sbin:{home}/.local/bin:{home}/.npm-global/bin"
+            );
+
             let mut child = tokio::process::Command::new(&cli_path)
                 .arg("-p")
+                .env("PATH", &expanded_path)
                 .stdin(std::process::Stdio::piped())
                 .stdout(std::process::Stdio::piped())
                 .stderr(std::process::Stdio::piped())

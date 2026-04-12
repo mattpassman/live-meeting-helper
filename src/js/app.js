@@ -62,6 +62,10 @@ async function startMeeting() {
       setMeetingControls(s === 'completed' ? 'idle' : s);
     };
     await invoke('start_meeting', { audioSource, title, profileId, micDevice, onNotes, onState });
+    // Clear previous meeting notes so the new session starts fresh.
+    lastNotes = null;
+    lastUpdateTimes = {};
+    document.getElementById('notesContainer').innerHTML = '';
     setMeetingControls('active');
   } catch (e) {
     const errEl = document.getElementById('meetingError');
