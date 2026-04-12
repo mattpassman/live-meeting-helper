@@ -62,6 +62,11 @@ build_macos() {
         echo "  ERROR: No .dmg found after build"
         exit 1
     fi
+
+    # Tauri's DMG bundler mounts the image during creation, which triggers
+    # macOS to open a Finder window. Eject it immediately after the build.
+    hdiutil info | awk '/\/Volumes\/Live Meeting Helper/{print $1}' | xargs -I{} hdiutil detach {} 2>/dev/null || true
+
     cp "$DMG" "$OUT_DIR/"
     echo "  → $OUT_DIR/$(basename "$DMG")"
 }
