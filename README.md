@@ -16,8 +16,8 @@ Also available: [Windows MSI](https://github.com/mattpassman/live-meeting-helper
 ## Quick Start
 
 1. Download the installer for your platform from the Releases page
-2. Open the app — a setup wizard will guide you through configuration
-3. Enter your Claude or OpenAI API key when prompted
+2. Open the app — a 4-step setup wizard will appear on first launch to configure your AI provider, transcription, and audio sources
+3. Enter your Claude or OpenAI API key when prompted, or choose Claude CLI if you have a Pro/Max/Team plan
 4. Click **Start** on the Meeting tab and begin speaking
 
 ## Features
@@ -27,7 +27,7 @@ Also available: [Windows MSI](https://github.com/mattpassman/live-meeting-helper
 - **Transcript saved with each session for reference** — review what was said alongside your generated notes
 - **Works with the AI you already have** — bring your own Claude or OpenAI API key, or use the Claude CLI if you have a Claude Pro/Max/Team plan (no separate API key needed)
 - **Full session history** — past meetings are saved automatically, and nothing is lost if the app closes unexpectedly
-- **Stays out of your way** — runs quietly in the background during meetings and only surfaces when you need it
+- **Stays out of your way** — runs quietly during meetings and only surfaces when you need it
 - **Local transcription option** — enable local Whisper transcription in Settings to keep audio on your machine; note that transcript text is still sent to your AI provider to generate notes
 - **Profile support** — save different configurations for standups, client calls, interviews, and more
 
@@ -52,11 +52,11 @@ Go to [platform.openai.com](https://platform.openai.com), create an account, and
 
 Live Meeting Helper sends data to external services to do its job. Here is exactly what goes where:
 
-**Transcription (default: AWS Transcribe)**
-Audio is streamed to AWS Transcribe over an encrypted connection. AWS does not retain audio after transcription. The resulting transcript text is then sent to your AI provider to generate notes.
+**Transcription (default: Whisper, local)**
+By default, transcription runs on your device using Whisper — no audio leaves your machine. Download a Whisper model on first launch via the setup wizard or in Settings → Transcription.
 
-**Transcription (optional: local Whisper)**
-Enable this in Settings to run transcription on your device — no audio leaves your machine. The transcript text is still sent to your AI provider to generate notes.
+**Transcription (optional: AWS Transcribe)**
+Switch to AWS Transcribe in Settings to use cloud transcription. Audio is streamed to AWS over an encrypted connection. AWS does not retain audio after transcription. The resulting transcript text is then sent to your AI provider to generate notes.
 
 **Note generation (always)**
 Transcript text is sent to Anthropic or OpenAI (whichever you choose) to produce structured notes. This is unavoidable — it is how the notes are generated. Review your provider's data policies at [anthropic.com/legal/privacy](https://www.anthropic.com/legal/privacy) or [openai.com/policies/privacy-policy](https://openai.com/policies/privacy-policy).
@@ -82,8 +82,8 @@ Stored locally in a config file on your machine. Never sent anywhere except dire
   - [Anthropic Claude](https://console.anthropic.com) (default, `claude-sonnet-4-6`)
   - [OpenAI](https://platform.openai.com) (`gpt-4o`)
 - **Transcription backend** — choose one:
-  - **AWS Transcribe** (default): requires an AWS account with `transcribe:StartStreamTranscription` permission. Credentials via standard chain (`~/.aws/credentials`, env vars, IAM role).
-  - **Local Whisper** (offline, private): build with `--features whisper` (needs cmake and a C++ compiler), then download a GGML model file and point to it in Settings. No cloud account needed.
+  - **Local Whisper** (default, offline, private): download a GGML model via the in-app wizard or Settings → Transcription. Build with `--features whisper` (needs cmake and a C++ compiler). No cloud account needed.
+  - **AWS Transcribe** (optional cloud): requires an AWS account with `transcribe:StartStreamTranscription` permission. Credentials via standard chain (`~/.aws/credentials`, env vars, IAM role).
 
 ### Build
 
@@ -122,7 +122,7 @@ Key settings (configurable via the Settings UI):
 | Claude CLI Path | Path to the `claude` binary (default: resolved from PATH) |
 | OpenAI API Key | Your OpenAI API key |
 | OpenAI Model | Model to use (default: `gpt-4o`) |
-| Transcription Provider | `aws` (default) or `whisper` (local) |
+| Transcription Provider | `whisper` (default, local) or `aws` (cloud) |
 | Whisper Model Path | Path to a GGML model file (e.g. `~/models/ggml-base.en.bin`) |
 | AWS Profile | Named AWS credentials profile (default: `default`) |
 | AWS Region | AWS region for Transcribe (default: `us-east-1`) |

@@ -61,7 +61,18 @@ impl WhisperService {
         }
 
         #[cfg(feature = "whisper")]
-        self.run_whisper(audio_rx, event_tx).await
+        {
+            if self.model_path.is_empty() {
+                drop(audio_rx);
+                drop(event_tx);
+                return Err(TranscriptionError::StreamStart(
+                    "No Whisper model configured. Go to Settings → Transcription → Whisper \
+                     and download a model, then start the meeting again."
+                        .into(),
+                ));
+            }
+            self.run_whisper(audio_rx, event_tx).await
+        }
     }
 
     #[cfg(feature = "whisper")]

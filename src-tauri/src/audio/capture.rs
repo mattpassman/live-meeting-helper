@@ -2,7 +2,7 @@ use super::{AudioCaptureError, AudioChunk, AudioSource, CaptureState};
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::SampleFormat;
 use std::sync::{
-    atomic::{AtomicBool, AtomicU8, Ordering},
+    atomic::{AtomicBool, AtomicU64, AtomicU8, Ordering},
     Arc,
 };
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -47,15 +47,21 @@ pub fn list_input_devices() -> Vec<(String, bool)> {
     devices
 }
 
+/// Throttle interval for level emissions: 100 ms
+const LEVEL_THROTTLE_MS: u64 = 100;
+
 impl AudioCaptureHandle {
     pub fn start(
         source: AudioSource,
         mic_device: Option<String>,
         tx: mpsc::Sender<AudioChunk>,
+        level_cb: Option<Arc<dyn Fn(f32) + Send + Sync>>,
     ) -> Result<Self, AudioCaptureError> {
         let state = Arc::new(AtomicU8::new(STATE_IDLE));
         let paused = Arc::new(AtomicBool::new(false));
         let stop_flag = Arc::new(AtomicBool::new(false));
+        // Shared last-emit timestamp for level throttling (millis since UNIX_EPOCH)
+        let last_level_emit = Arc::new(AtomicU64::new(0));
 
         let mut thread = None;
 
@@ -71,9 +77,11 @@ impl AudioCaptureHandle {
             let sf = stop_flag.clone();
             let tx_mic = tx.clone();
             let mic_dev = mic_device.clone();
+            let level_cb_mic = level_cb.clone();
+            let last_emit_mic = last_level_emit.clone();
 
             thread = Some(std::thread::spawn(move || {
-                run_capture(AudioSource::Microphone, mic_dev, tx_mic, s, p, sf);
+                run_capture(AudioSource::Microphone, mic_dev, tx_mic, s, p, sf, level_cb_mic, last_emit_mic);
             }));
         }
 
@@ -146,6 +154,7 @@ impl AudioCaptureHandle {
             loopback,
         })
     }
+
 
     pub fn pause(&self) {
         self.paused.store(true, Ordering::Relaxed);
@@ -277,6 +286,15 @@ fn f32_to_i16(s: f32) -> i16 {
     (s.clamp(-1.0, 1.0) * i16::MAX as f32) as i16
 }
 
+/// Compute RMS of i16 samples as a 0.0–1.0 float.
+fn rms_level(samples: &[i16]) -> f32 {
+    if samples.is_empty() {
+        return 0.0;
+    }
+    let sum_sq: f64 = samples.iter().map(|&s| (s as f64 / 32768.0).powi(2)).sum();
+    ((sum_sq / samples.len() as f64).sqrt() as f32).min(1.0)
+}
+
 fn run_capture(
     source: AudioSource,
     mic_device: Option<String>,
@@ -284,6 +302,8 @@ fn run_capture(
     state: Arc<AtomicU8>,
     paused: Arc<AtomicBool>,
     stop_flag: Arc<AtomicBool>,
+    level_cb: Option<Arc<dyn Fn(f32) + Send + Sync>>,
+    last_level_emit: Arc<AtomicU64>,
 ) {
     let host = cpal::default_host();
 
@@ -364,6 +384,8 @@ fn run_capture(
         SampleFormat::F32 => {
             let paused_c = paused.clone();
             let tx_c = tx.clone();
+            let level_cb_c = level_cb.clone();
+            let last_emit_c = last_level_emit.clone();
             device.build_input_stream(
                 &device_config,
                 move |data: &[f32], _: &cpal::InputCallbackInfo| {
@@ -378,6 +400,14 @@ fn run_capture(
                         .duration_since(UNIX_EPOCH)
                         .unwrap_or_default()
                         .as_millis() as u64;
+                    // Emit level at most every LEVEL_THROTTLE_MS
+                    if let Some(ref cb) = level_cb_c {
+                        let last = last_emit_c.load(Ordering::Relaxed);
+                        if now.saturating_sub(last) >= LEVEL_THROTTLE_MS {
+                            last_emit_c.store(now, Ordering::Relaxed);
+                            cb(rms_level(&resampled));
+                        }
+                    }
                     let duration_ms = (resampled.len() as u32 * 1000) / TARGET_SAMPLE_RATE;
                     let _ = tx_c.try_send(AudioChunk {
                         data: resampled,
@@ -396,6 +426,8 @@ fn run_capture(
         SampleFormat::I16 => {
             let paused_c = paused.clone();
             let tx_c = tx.clone();
+            let level_cb_c = level_cb.clone();
+            let last_emit_c = last_level_emit.clone();
             device.build_input_stream(
                 &device_config,
                 move |data: &[i16], _: &cpal::InputCallbackInfo| {
@@ -410,6 +442,14 @@ fn run_capture(
                         .duration_since(UNIX_EPOCH)
                         .unwrap_or_default()
                         .as_millis() as u64;
+                    // Emit level at most every LEVEL_THROTTLE_MS
+                    if let Some(ref cb) = level_cb_c {
+                        let last = last_emit_c.load(Ordering::Relaxed);
+                        if now.saturating_sub(last) >= LEVEL_THROTTLE_MS {
+                            last_emit_c.store(now, Ordering::Relaxed);
+                            cb(rms_level(&resampled));
+                        }
+                    }
                     let duration_ms = (resampled.len() as u32 * 1000) / TARGET_SAMPLE_RATE;
                     let _ = tx_c.try_send(AudioChunk {
                         data: resampled,

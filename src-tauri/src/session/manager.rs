@@ -10,6 +10,7 @@ use crate::types::{TranscriptSegment, TranscriptionEvent};
 use tokio::sync::mpsc;
 use std::sync::Arc;
 use tokio::sync::Mutex;
+use tauri::ipc::Channel;
 
 pub struct SessionManager {
     cmd_rx: mpsc::Receiver<SessionCommand>,
@@ -21,6 +22,7 @@ pub struct SessionManager {
     instruction_fwd_tx: Option<mpsc::Sender<String>>,
     shared_title: Arc<Mutex<String>>,
     shared_notes: Arc<Mutex<Option<MeetingNotes>>>,
+    level_channel: Channel<f32>,
 }
 
 struct ActiveSession {
@@ -38,6 +40,7 @@ impl SessionManager {
         instruction_rx: mpsc::Receiver<String>,
         shared_title: Arc<Mutex<String>>,
         shared_notes: Arc<Mutex<Option<MeetingNotes>>>,
+        level_channel: Channel<f32>,
         event_callback: impl Fn(SessionEvent) + Send + 'static,
     ) -> Self {
         Self {
@@ -50,6 +53,7 @@ impl SessionManager {
             instruction_fwd_tx: None,
             shared_title,
             shared_notes,
+            level_channel,
         }
     }
 
@@ -107,7 +111,18 @@ impl SessionManager {
         let (transcript_tx, transcript_rx) = mpsc::channel::<TranscriptionEvent>(128);
         let (notes_tx, notes_rx) = mpsc::channel::<NotesUpdate>(32);
 
-        let audio_handle = match AudioCaptureHandle::start(config.audio_source, config.mic_device.clone(), audio_tx) {
+        // Build a level callback that emits to the frontend channel
+        let level_ch = self.level_channel.clone();
+        let level_cb: Arc<dyn Fn(f32) + Send + Sync> = Arc::new(move |level| {
+            let _ = level_ch.send(level);
+        });
+
+        let audio_handle = match AudioCaptureHandle::start(
+            config.audio_source,
+            config.mic_device.clone(),
+            audio_tx,
+            Some(level_cb),
+        ) {
             Ok(h) => h,
             Err(e) => {
                 tracing::error!("Failed to start audio: {e}");
@@ -211,6 +226,9 @@ impl SessionManager {
                     session.update_rx.recv(),
                 ).await.ok().flatten() {
                     (self.event_callback)(SessionEvent::NotesUpdated(update.notes.clone()));
+                    if !update.transcript.is_empty() {
+                        (self.event_callback)(SessionEvent::TranscriptUpdated(update.transcript.clone()));
+                    }
                     session.latest_notes = Some(update.notes);
                     session.latest_transcript = update.transcript;
                 }
@@ -252,6 +270,9 @@ impl SessionManager {
     fn on_notes_update(&mut self, update: NotesUpdate) {
         tracing::info!("Notes update received, emitting to frontend");
         (self.event_callback)(SessionEvent::NotesUpdated(update.notes.clone()));
+        if !update.transcript.is_empty() {
+            (self.event_callback)(SessionEvent::TranscriptUpdated(update.transcript.clone()));
+        }
         if let Some(ref mut s) = self.active_session {
             s.latest_notes = Some(update.notes);
             s.latest_transcript = update.transcript;

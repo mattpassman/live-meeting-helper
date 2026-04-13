@@ -32,7 +32,7 @@ pub struct AppConfig {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub openai_model: Option<String>,
 
-    /// Transcription backend: "aws" (default) or "whisper" (local)
+    /// Transcription backend: "whisper" (default, local) or "aws"
     #[serde(default = "default_transcription_provider")]
     pub transcription_provider: String,
 
@@ -68,7 +68,7 @@ fn default_ai_provider() -> String {
 }
 
 fn default_transcription_provider() -> String {
-    "aws".to_string()
+    "whisper".to_string()
 }
 
 impl Default for AppConfig {
@@ -80,7 +80,7 @@ impl Default for AppConfig {
             claude_cli_path: None,
             openai_api_key: None,
             openai_model: None,
-            transcription_provider: default_transcription_provider(),
+            transcription_provider: default_transcription_provider(), // "whisper"
             whisper_model_path: None,
             aws_profile: None,
             aws_region: None,

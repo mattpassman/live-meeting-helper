@@ -909,3 +909,67 @@ main#content {
   gap: 8px;
   padding-top: 4px;
 }
+
+/* ── VU Meter ── */
+.vu-meter {
+  display: flex;
+  align-items: center;
+  width: 60px;
+  height: 20px;
+  background: var(--border-light);
+  border-radius: 3px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.vu-meter-bar {
+  height: 100%;
+  width: 0%;
+  background: var(--success);
+  border-radius: 3px;
+  transition: width 0.08s ease-out;
+}
+
+/* ── Live Transcript Panel ── */
+.live-transcript-panel {
+  background: var(--surface);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+  margin-bottom: 8px;
+  box-shadow: var(--shadow-sm);
+}
+
+.live-transcript-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-secondary);
+}
+
+.live-transcript-content {
+  padding: 8px 14px;
+  max-height: 180px;
+  overflow-y: auto;
+  font-size: 13px;
+}
+
+/* ── Settings test-connection row ── */
+.settings-test-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.settings-test-status {
+  font-size: 13px;
+  min-height: 1.2em;
+}
+
+.settings-test-status.success { color: var(--success); }
+.settings-test-status.error   { color: var(--danger); }

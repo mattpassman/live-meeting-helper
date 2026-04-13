@@ -1,6 +1,6 @@
 pub mod manager;
 
-use crate::types::AudioSource;
+use crate::types::{AudioSource, TranscriptSegment};
 use crate::notes::MeetingNotes;
 use crate::profile::MeetingProfile;
 
@@ -10,6 +10,7 @@ pub use manager::SessionManager;
 pub enum SessionEvent {
     NotesUpdated(MeetingNotes),
     StateChanged(SessionState),
+    TranscriptUpdated(Vec<TranscriptSegment>),
 }
 
 #[derive(Debug, Clone)]

@@ -1,4 +1,4 @@
-use crate::types::AudioSource;
+use crate::types::{AudioSource, TranscriptSegment};
 use crate::config::AppConfig;
 use crate::notes::{BlockState, Correction, MeetingNotes};
 use crate::notes::corrections::extract_corrections;
@@ -35,6 +35,8 @@ pub async fn start_meeting(
     mic_device: Option<String>,
     on_notes: tauri::ipc::Channel<MeetingNotes>,
     on_state: tauri::ipc::Channel<String>,
+    on_level: tauri::ipc::Channel<f32>,
+    on_transcript: tauri::ipc::Channel<Vec<TranscriptSegment>>,
 ) -> Result<(), String> {
     let mut mgr = state.session_manager.lock().await;
     if let Some(ref h) = *mgr {
@@ -67,22 +69,34 @@ pub async fn start_meeting(
     let (cmd_tx, cmd_rx) = mpsc::channel::<SessionCommand>(16);
     let (instruction_tx, instruction_rx) = mpsc::channel::<String>(64);
 
-    let mut manager = SessionManager::new(cmd_rx, instruction_rx, state.meeting_title.clone(), state.live_notes.clone(), move |event| {
-        match event {
-            SessionEvent::NotesUpdated(notes) => {
-                tracing::info!("Sending notes via channel");
-                // shared live_notes is already updated by sync_to_shared in the
-                // generator — do NOT overwrite here or we lose user edits that
-                // arrived during generation.
-                if let Err(e) = on_notes.send(notes) {
-                    tracing::error!("Channel send failed: {e}");
+    let mut manager = SessionManager::new(
+        cmd_rx,
+        instruction_rx,
+        state.meeting_title.clone(),
+        state.live_notes.clone(),
+        on_level,
+        move |event| {
+            match event {
+                SessionEvent::NotesUpdated(notes) => {
+                    tracing::info!("Sending notes via channel");
+                    // shared live_notes is already updated by sync_to_shared in the
+                    // generator — do NOT overwrite here or we lose user edits that
+                    // arrived during generation.
+                    if let Err(e) = on_notes.send(notes) {
+                        tracing::error!("Channel send failed: {e}");
+                    }
+                }
+                SessionEvent::StateChanged(s) => {
+                    let _ = on_state.send(s.to_string());
+                }
+                SessionEvent::TranscriptUpdated(segments) => {
+                    if let Err(e) = on_transcript.send(segments) {
+                        tracing::error!("Transcript channel send failed: {e}");
+                    }
                 }
             }
-            SessionEvent::StateChanged(s) => {
-                let _ = on_state.send(s.to_string());
-            }
-        }
-    });
+        },
+    );
 
     // Send start command
     cmd_tx.send(SessionCommand::Start(config)).await.map_err(|e| e.to_string())?;

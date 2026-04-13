@@ -35,6 +35,9 @@
         <button id="btnPause" class="btn btn-warn" onclick="pauseMeeting()" disabled>Pause</button>
         <button id="btnResume" class="btn btn-primary" onclick="resumeMeeting()" style="display:none">Resume</button>
         <button id="btnStop" class="btn btn-danger" onclick="stopMeeting()" disabled>Stop</button>
+        <div id="vuMeter" class="vu-meter" title="Audio level">
+          <div id="vuMeterBar" class="vu-meter-bar"></div>
+        </div>
       </div>
 
       <div id="meetingError" class="meeting-error"></div>
@@ -79,9 +82,17 @@
         <div class="tray-body" style="display:none" id="correctionsTrayBody"></div>
       </div>
 
+      <div id="liveTranscriptPanel" class="live-transcript-panel" style="display:none">
+        <div class="live-transcript-header">
+          <span>Live Transcript</span>
+        </div>
+        <div id="liveTranscriptContent" class="live-transcript-content"></div>
+      </div>
+
       <div class="instruction-bar">
         <input type="text" id="instructionInput" placeholder="Send an instruction, e.g. 'focus on the budget discussion'" onkeydown="if(event.key==='Enter')sendInstruction()">
         <button class="btn btn-primary" onclick="sendInstruction()">Send</button>
+        <button class="btn" id="btnToggleTranscript" onclick="toggleLiveTranscript()" style="display:none">Show Transcript</button>
         <button class="btn" onclick="copyNotes()">Copy</button>
       </div>
     </div>
@@ -149,6 +160,10 @@
           <label>Claude API Key<input type="password" id="settingsClaudeApiKey" placeholder="sk-ant-..."></label>
           <label>Claude Model<input type="text" id="settingsClaudeModel" placeholder="claude-sonnet-4-6 (default)"></label>
           <div class="hint">Get your API key at <strong>console.anthropic.com</strong></div>
+          <div class="settings-test-row">
+            <button class="btn" id="settingsTestBtn" onclick="testSettingsConnection()">Test connection</button>
+            <span id="settingsTestStatus" class="settings-test-status"></span>
+          </div>
         </div>
 
         <div id="claudeCliFields" style="display:none">
@@ -166,6 +181,10 @@
           <label>OpenAI API Key<input type="password" id="settingsOpenAiKey" placeholder="sk-..."></label>
           <label>OpenAI Model<input type="text" id="settingsOpenAiModel" placeholder="gpt-4o (default)"></label>
           <div class="hint">Get your API key at <strong>platform.openai.com</strong></div>
+          <div class="settings-test-row">
+            <button class="btn" id="settingsTestBtnOpenai" onclick="testSettingsConnection()">Test connection</button>
+            <span id="settingsTestStatusOpenai" class="settings-test-status"></span>
+          </div>
         </div>
 
         <hr style="margin:12px 0;border:none;border-top:1px solid var(--border-light)">

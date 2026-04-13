@@ -60,12 +60,18 @@ async function startMeeting() {
     onState.onmessage = (state) => {
       const s = state.toLowerCase();
       setMeetingControls(s === 'completed' ? 'idle' : s);
+      if (s === 'idle' || s === 'paused') setVuLevel(0);
     };
-    await invoke('start_meeting', { audioSource, title, profileId, micDevice, onNotes, onState });
+    const onLevel = new Channel();
+    onLevel.onmessage = (level) => setVuLevel(level);
+    const onTranscript = new Channel();
+    onTranscript.onmessage = (segments) => appendLiveTranscript(segments);
+    await invoke('start_meeting', { audioSource, title, profileId, micDevice, onNotes, onState, onLevel, onTranscript });
     // Clear previous meeting notes so the new session starts fresh.
     lastNotes = null;
     lastUpdateTimes = {};
     document.getElementById('notesContainer').innerHTML = '';
+    document.getElementById('liveTranscriptContent').innerHTML = '';
     setMeetingControls('active');
   } catch (e) {
     const errEl = document.getElementById('meetingError');
@@ -101,12 +107,72 @@ function showMeetingError(e) {
   setTimeout(() => { errEl.textContent = ''; }, 5000);
 }
 
+// --- VU Meter ---
+function setVuLevel(level) {
+  const bar = document.getElementById('vuMeterBar');
+  if (!bar) return;
+  // level is 0.0–1.0 RMS; apply some visual scaling so normal speech reads clearly
+  const pct = Math.min(100, Math.round(level * 200));
+  bar.style.width = pct + '%';
+  // Shift colour from green → yellow → red as level rises
+  if (pct > 75) {
+    bar.style.background = 'var(--danger)';
+  } else if (pct > 50) {
+    bar.style.background = 'var(--warn)';
+  } else {
+    bar.style.background = 'var(--success)';
+  }
+}
+
+// --- Live Transcript ---
+let liveTranscriptVisible = false;
+
+function toggleLiveTranscript() {
+  liveTranscriptVisible = !liveTranscriptVisible;
+  const panel = document.getElementById('liveTranscriptPanel');
+  const btn = document.getElementById('btnToggleTranscript');
+  panel.style.display = liveTranscriptVisible ? '' : 'none';
+  if (btn) btn.textContent = liveTranscriptVisible ? 'Hide Transcript' : 'Show Transcript';
+  if (liveTranscriptVisible) {
+    const content = document.getElementById('liveTranscriptContent');
+    if (content) content.scrollTop = content.scrollHeight;
+  }
+}
+
+function appendLiveTranscript(segments) {
+  if (!segments || segments.length === 0) return;
+  const content = document.getElementById('liveTranscriptContent');
+  if (!content) return;
+
+  // Show transcript toggle button on first transcript batch
+  const btn = document.getElementById('btnToggleTranscript');
+  if (btn) btn.style.display = '';
+
+  segments.forEach(seg => {
+    const line = document.createElement('div');
+    line.className = 'transcript-line';
+    const mins = Math.floor(seg.start_time_ms / 60000);
+    const secs = Math.floor((seg.start_time_ms / 1000) % 60);
+    const ts = String(mins).padStart(2, '0') + ':' + String(secs).padStart(2, '0');
+    const speaker = seg.speaker || '';
+    const speakerSpan = speaker ? `<span class="speaker">${esc(speaker)}</span>: ` : '';
+    line.innerHTML = `<span class="ts">${ts}</span> ${speakerSpan}${esc(seg.text)}`;
+    content.appendChild(line);
+  });
+
+  // Auto-scroll if visible
+  if (liveTranscriptVisible) {
+    content.scrollTop = content.scrollHeight;
+  }
+}
+
 function setMeetingControls(state) {
   const start = document.getElementById('btnStart');
   const pause = document.getElementById('btnPause');
   const resume = document.getElementById('btnResume');
   const stop = document.getElementById('btnStop');
   const status = document.getElementById('navStatus');
+  const toggleTransBtn = document.getElementById('btnToggleTranscript');
 
   start.disabled = state !== 'idle';
   pause.disabled = state !== 'active';
@@ -114,6 +180,15 @@ function setMeetingControls(state) {
   resume.style.display = state === 'paused' ? '' : 'none';
   stop.disabled = state === 'idle';
   status.textContent = state.charAt(0).toUpperCase() + state.slice(1);
+
+  // Reset VU meter when idle
+  if (state === 'idle') {
+    setVuLevel(0);
+    // Hide transcript toggle and panel on idle
+    if (toggleTransBtn) toggleTransBtn.style.display = 'none';
+    document.getElementById('liveTranscriptPanel').style.display = 'none';
+    liveTranscriptVisible = false;
+  }
 }
 
 async function sendInstruction() {
@@ -739,6 +814,11 @@ function toggleAiProviderFields() {
   document.getElementById('claudeFields').style.display = provider === 'claude' ? '' : 'none';
   document.getElementById('claudeCliFields').style.display = provider === 'claude-cli' ? '' : 'none';
   document.getElementById('openaiFields').style.display = provider === 'openai' ? '' : 'none';
+  // Test connection button is only relevant for API-key-based providers
+  const testBtn = document.getElementById('settingsTestBtn');
+  if (testBtn) testBtn.style.display = provider === 'claude' ? '' : 'none';
+  const testBtnOpenai = document.getElementById('settingsTestBtnOpenai');
+  if (testBtnOpenai) testBtnOpenai.style.display = provider === 'openai' ? '' : 'none';
 }
 
 function toggleTranscriptionFields() {
@@ -757,7 +837,7 @@ async function loadSettings() {
     document.getElementById('settingsClaudeCliPath').value = config.claude_cli_path || '';
     document.getElementById('settingsOpenAiKey').value = config.openai_api_key || '';
     document.getElementById('settingsOpenAiModel').value = config.openai_model || '';
-    const txProvider = config.transcription_provider || 'aws';
+    const txProvider = config.transcription_provider || 'whisper';
     document.getElementById('settingsTranscriptionProvider').value = txProvider;
     const whisperPath = config.whisper_model_path || '';
     document.getElementById('settingsWhisperModelPath').value = whisperPath;
@@ -788,19 +868,26 @@ async function loadSettings() {
 }
 
 async function saveSettings() {
-  const config = {
-    ai_provider: document.getElementById('settingsAiProvider').value || 'claude',
-    claude_api_key: document.getElementById('settingsClaudeApiKey').value || null,
-    claude_model: document.getElementById('settingsClaudeModel').value || null,
-    claude_cli_path: document.getElementById('settingsClaudeCliPath').value || null,
-    openai_api_key: document.getElementById('settingsOpenAiKey').value || null,
-    openai_model: document.getElementById('settingsOpenAiModel').value || null,
-    transcription_provider: document.getElementById('settingsTranscriptionProvider').value || 'aws',
-    whisper_model_path: document.getElementById('settingsWhisperModelPath').value || null,
-    aws_profile: document.getElementById('settingsAwsProfile').value || null,
-    aws_region: document.getElementById('settingsAwsRegion').value || null,
-    verbose_logging: document.getElementById('settingsVerbose').checked,
-  };
+  // Read current config first so fields not present in the form (e.g. setup_complete)
+  // pass through unchanged rather than being reset to their serde defaults.
+  let config;
+  try {
+    config = await invoke('get_config');
+  } catch (e) {
+    config = {};
+  }
+  // Merge form fields over the existing config
+  config.ai_provider = document.getElementById('settingsAiProvider').value || 'claude';
+  config.claude_api_key = document.getElementById('settingsClaudeApiKey').value || null;
+  config.claude_model = document.getElementById('settingsClaudeModel').value || null;
+  config.claude_cli_path = document.getElementById('settingsClaudeCliPath').value || null;
+  config.openai_api_key = document.getElementById('settingsOpenAiKey').value || null;
+  config.openai_model = document.getElementById('settingsOpenAiModel').value || null;
+  config.transcription_provider = document.getElementById('settingsTranscriptionProvider').value || 'whisper';
+  config.whisper_model_path = document.getElementById('settingsWhisperModelPath').value || null;
+  config.aws_profile = document.getElementById('settingsAwsProfile').value || null;
+  config.aws_region = document.getElementById('settingsAwsRegion').value || null;
+  config.verbose_logging = document.getElementById('settingsVerbose').checked;
   const statusEl = document.getElementById('settingsSaveStatus');
   statusEl.textContent = '';
   statusEl.className = 'save-status';
@@ -812,6 +899,38 @@ async function saveSettings() {
   } catch (e) {
     statusEl.textContent = String(e);
     statusEl.className = 'save-status error';
+  }
+}
+
+// --- Settings: Test Connection ---
+async function testSettingsConnection() {
+  const provider = document.getElementById('settingsAiProvider').value;
+  // Determine which status element and button to use
+  const isOpenai = provider === 'openai';
+  const statusEl = document.getElementById(isOpenai ? 'settingsTestStatusOpenai' : 'settingsTestStatus');
+  const btn = document.getElementById(isOpenai ? 'settingsTestBtnOpenai' : 'settingsTestBtn');
+  if (!statusEl || !btn) return;
+
+  // Save form state first so test_ai_connection reads the current key
+  await saveSettings();
+
+  btn.disabled = true;
+  statusEl.textContent = 'Testing...';
+  statusEl.className = 'settings-test-status';
+
+  try {
+    const name = await invoke('test_ai_connection');
+    statusEl.textContent = 'Connected to ' + name;
+    statusEl.className = 'settings-test-status success';
+  } catch (e) {
+    statusEl.textContent = String(e);
+    statusEl.className = 'settings-test-status error';
+  } finally {
+    btn.disabled = false;
+    setTimeout(() => {
+      statusEl.textContent = '';
+      statusEl.className = 'settings-test-status';
+    }, 5000);
   }
 }
 
