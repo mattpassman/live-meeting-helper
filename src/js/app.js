@@ -118,17 +118,11 @@ function showMeetingError(e) {
 function setVuLevel(level) {
   const bar = document.getElementById('vuMeterBar');
   if (!bar) return;
-  // level is 0.0–1.0 RMS; apply some visual scaling so normal speech reads clearly
-  const pct = Math.min(100, Math.round(level * 200));
+  // Log scale: map -60 dBFS → 0%, 0 dBFS → 100%
+  // Normal speech (RMS ~0.02–0.08) lands at roughly 40–65%
+  const db = level > 0 ? 20 * Math.log10(level) : -Infinity;
+  const pct = Math.max(0, Math.min(100, (60 + db) / 60 * 100));
   bar.style.width = pct + '%';
-  // Shift colour from green → yellow → red as level rises
-  if (pct > 75) {
-    bar.style.background = 'var(--danger)';
-  } else if (pct > 50) {
-    bar.style.background = 'var(--warn)';
-  } else {
-    bar.style.background = 'var(--success)';
-  }
 }
 
 // --- Live Transcript ---
@@ -188,10 +182,11 @@ function setMeetingControls(state) {
   stop.disabled = state === 'idle';
   status.textContent = state.charAt(0).toUpperCase() + state.slice(1);
 
-  // Reset VU meter when idle
+  // VU meter: always visible, zero out when not recording
+  if (state !== 'recording') setVuLevel(0);
+
+  // Hide transcript toggle and panel when idle
   if (state === 'idle') {
-    setVuLevel(0);
-    // Hide transcript toggle and panel on idle
     if (toggleTransBtn) toggleTransBtn.style.display = 'none';
     document.getElementById('liveTranscriptPanel').style.display = 'none';
     liveTranscriptVisible = false;
@@ -265,7 +260,7 @@ async function copyNotes() {
   if (!lastNotes) return;
   try {
     const md = notesToMarkdown(lastNotes);
-    await navigator.clipboard.writeText(md);
+    await invoke('write_clipboard', { text: md });
   } catch (e) { console.error('Copy failed:', e); }
 }
 
@@ -691,7 +686,7 @@ async function copySessionToClipboard(format) {
   if (!currentHistorySession) return;
   try {
     const text = await invoke('export_session', { sessionId: currentHistorySession, format });
-    await navigator.clipboard.writeText(text);
+    await invoke('write_clipboard', { text });
     showExportStatus('Copied to clipboard');
   } catch (e) { showExportStatus(`Error: ${e}`, true); }
 }

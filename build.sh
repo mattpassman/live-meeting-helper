@@ -54,34 +54,61 @@ build_macos() {
 
     cd "$TAURI_DIR"
 
-    echo "  Building .dmg..."
-    cargo tauri build --bundles dmg
+    if [[ "$DEV_BUILD" == "true" ]]; then
+        echo "  Building .app (debug, no DMG)..."
+        cargo tauri build --debug --bundles app
 
-    DMG=$(find target/release/bundle/dmg -name "*.dmg" | head -1)
-    if [[ -z "$DMG" ]]; then
-        echo "  ERROR: No .dmg found after build"
-        exit 1
+        APP=$(find target/debug/bundle/macos -name "*.app" -maxdepth 1 | head -1)
+        if [[ -z "$APP" ]]; then
+            echo "  ERROR: No .app found after debug build"
+            exit 1
+        fi
+
+        DEST="$OUT_DIR/$(basename "$APP")"
+        rm -rf "$DEST"
+        cp -r "$APP" "$DEST"
+        echo "  → $DEST"
+        echo "  Tip: open \"$DEST\" to launch"
+    else
+        echo "  Building .dmg..."
+        cargo tauri build --bundles dmg
+
+        DMG=$(find target/release/bundle/dmg -name "*.dmg" | head -1)
+        if [[ -z "$DMG" ]]; then
+            echo "  ERROR: No .dmg found after build"
+            exit 1
+        fi
+
+        # Tauri's DMG bundler mounts the image during creation, which triggers
+        # macOS to open a Finder window. Eject it immediately after the build.
+        hdiutil info | awk '/\/Volumes\/Live Meeting Helper/{print $1}' | xargs -I{} hdiutil detach {} 2>/dev/null || true
+
+        cp "$DMG" "$OUT_DIR/"
+        echo "  → $OUT_DIR/$(basename "$DMG")"
     fi
-
-    # Tauri's DMG bundler mounts the image during creation, which triggers
-    # macOS to open a Finder window. Eject it immediately after the build.
-    hdiutil info | awk '/\/Volumes\/Live Meeting Helper/{print $1}' | xargs -I{} hdiutil detach {} 2>/dev/null || true
-
-    cp "$DMG" "$OUT_DIR/"
-    echo "  → $OUT_DIR/$(basename "$DMG")"
 }
 
 # --- Main ---
 usage() {
-    echo "Usage: $0 [linux|macos|all]"
-    echo "  linux - Build Linux binary (uses Docker)"
-    echo "  macos - Build macOS binary (must run on Mac)"
-    echo "  all   - Build all platforms (skips unavailable)"
+    echo "Usage: $0 [linux|macos|all] [--dev]"
+    echo "  linux     - Build Linux binary (uses Docker)"
+    echo "  macos     - Build macOS .dmg (must run on Mac)"
+    echo "  all       - Build all platforms (skips unavailable)"
+    echo "  --dev     - macOS only: debug build, outputs .app instead of .dmg (much faster)"
     echo ""
     echo "Windows: use build-windows.bat on a Windows machine"
 }
 
-TARGET="${1:-all}"
+DEV_BUILD=false
+ARGS=()
+for arg in "$@"; do
+    case "$arg" in
+        --dev) DEV_BUILD=true ;;
+        *)     ARGS+=("$arg") ;;
+    esac
+done
+
+TARGET="${ARGS[0]:-all}"
 
 case "$TARGET" in
     linux)   build_linux ;;

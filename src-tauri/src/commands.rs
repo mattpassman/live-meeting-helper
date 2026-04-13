@@ -649,3 +649,9 @@ pub async fn download_whisper_model(
 
     Ok(path_str)
 }
+
+#[tauri::command]
+pub fn write_clipboard(text: String) -> Result<(), String> {
+    let mut ctx = arboard::Clipboard::new().map_err(|e| format!("Clipboard error: {e}"))?;
+    ctx.set_text(text).map_err(|e| format!("Clipboard write error: {e}"))
+}
