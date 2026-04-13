@@ -109,7 +109,8 @@ main#content {
   gap: 8px;
   margin-bottom: 24px;
   align-items: center;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  overflow: hidden;
 }
 
 .controls-bar select,
@@ -128,7 +129,7 @@ main#content {
   border-color: var(--primary);
   box-shadow: 0 0 0 2px var(--primary-light);
 }
-.controls-bar input[type="text"] { flex: 1; min-width: 150px; }
+.controls-bar input[type="text"] { flex: 1; min-width: 80px; }
 
 /* Audio source dropdown */
 .audio-source-selector {
@@ -916,7 +917,8 @@ main#content {
   align-items: center;
   width: 60px;
   height: 20px;
-  background: var(--border-light);
+  background: #d0d3d8;
+  border: 1px solid var(--border);
   border-radius: 3px;
   overflow: hidden;
   flex-shrink: 0;

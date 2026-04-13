@@ -821,11 +821,6 @@ function toggleAiProviderFields() {
   document.getElementById('claudeFields').style.display = provider === 'claude' ? '' : 'none';
   document.getElementById('claudeCliFields').style.display = provider === 'claude-cli' ? '' : 'none';
   document.getElementById('openaiFields').style.display = provider === 'openai' ? '' : 'none';
-  // Test connection button is only relevant for API-key-based providers
-  const testBtn = document.getElementById('settingsTestBtn');
-  if (testBtn) testBtn.style.display = provider === 'claude' ? '' : 'none';
-  const testBtnOpenai = document.getElementById('settingsTestBtnOpenai');
-  if (testBtnOpenai) testBtnOpenai.style.display = provider === 'openai' ? '' : 'none';
 }
 
 function toggleTranscriptionFields() {

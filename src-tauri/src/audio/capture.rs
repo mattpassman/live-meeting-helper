@@ -112,7 +112,10 @@ impl AudioCaptureHandle {
         #[cfg(target_os = "macos")]
         let loopback = {
             if source == AudioSource::SystemAudio || source == AudioSource::Both {
-                match super::loopback_mac::MacLoopbackHandle::start(tx.clone()) {
+                // When system audio is the only source, give it the level callback.
+                // When "both" are active, mic already owns the callback; share it.
+                let loopback_level_cb = level_cb.clone();
+                match super::loopback_mac::MacLoopbackHandle::start(tx.clone(), loopback_level_cb) {
                     Ok(h) => Some(h),
                     Err(e) => {
                         tracing::error!("macOS system audio loopback: {e}");
