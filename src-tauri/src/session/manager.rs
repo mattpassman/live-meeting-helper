@@ -23,6 +23,8 @@ pub struct SessionManager {
     shared_title: Arc<Mutex<String>>,
     shared_notes: Arc<Mutex<Option<MeetingNotes>>>,
     level_channel: Channel<f32>,
+    task_error_tx: mpsc::Sender<String>,
+    task_error_rx: mpsc::Receiver<String>,
 }
 
 struct ActiveSession {
@@ -43,6 +45,7 @@ impl SessionManager {
         level_channel: Channel<f32>,
         event_callback: impl Fn(SessionEvent) + Send + 'static,
     ) -> Self {
+        let (task_error_tx, task_error_rx) = mpsc::channel::<String>(16);
         Self {
             cmd_rx,
             instruction_rx,
@@ -54,6 +57,8 @@ impl SessionManager {
             shared_title,
             shared_notes,
             level_channel,
+            task_error_tx,
+            task_error_rx,
         }
     }
 
@@ -91,6 +96,14 @@ impl SessionManager {
                 } => {
                     if let Some(update) = update {
                         self.on_notes_update(update);
+                    }
+                }
+                err_msg = self.task_error_rx.recv() => {
+                    if let Some(msg) = err_msg {
+                        tracing::error!("Transcription task failed: {msg}");
+                        self.state = SessionState::Error;
+                        (self.event_callback)(SessionEvent::StateChanged(SessionState::Error));
+                        (self.event_callback)(SessionEvent::ErrorMessage(msg));
                     }
                 }
             }
@@ -140,18 +153,22 @@ impl SessionManager {
                     .whisper_model_path
                     .unwrap_or_default();
                 let mut transcriber = WhisperService::new(model_path);
+                let error_tx = self.task_error_tx.clone();
                 tokio::spawn(async move {
                     if let Err(e) = transcriber.run(audio_rx, transcript_tx).await {
                         tracing::error!("Whisper transcription error: {e}");
+                        let _ = error_tx.send(e.to_string()).await;
                     }
                 });
             }
             _ => {
                 // Default: AWS Transcribe
                 let mut transcriber = TranscriptionService::new();
+                let error_tx = self.task_error_tx.clone();
                 tokio::spawn(async move {
                     if let Err(e) = transcriber.run(audio_rx, transcript_tx).await {
                         tracing::error!("AWS transcription error: {e}");
+                        let _ = error_tx.send(e.to_string()).await;
                     }
                 });
             }

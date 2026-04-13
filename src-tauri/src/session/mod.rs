@@ -11,6 +11,7 @@ pub enum SessionEvent {
     NotesUpdated(MeetingNotes),
     StateChanged(SessionState),
     TranscriptUpdated(Vec<TranscriptSegment>),
+    ErrorMessage(String),
 }
 
 #[derive(Debug, Clone)]

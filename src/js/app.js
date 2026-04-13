@@ -58,6 +58,13 @@ async function startMeeting() {
     };
     const onState = new Channel();
     onState.onmessage = (state) => {
+      if (typeof state === 'string' && state.startsWith('error:')) {
+        const msg = state.slice('error:'.length);
+        showMeetingError(msg);
+        setMeetingControls('idle');
+        setVuLevel(0);
+        return;
+      }
       const s = state.toLowerCase();
       setMeetingControls(s === 'completed' ? 'idle' : s);
       if (s === 'idle' || s === 'paused') setVuLevel(0);

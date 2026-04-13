@@ -89,6 +89,9 @@ pub async fn start_meeting(
                 SessionEvent::StateChanged(s) => {
                     let _ = on_state.send(s.to_string());
                 }
+                SessionEvent::ErrorMessage(msg) => {
+                    let _ = on_state.send(format!("error:{msg}"));
+                }
                 SessionEvent::TranscriptUpdated(segments) => {
                     if let Err(e) = on_transcript.send(segments) {
                         tracing::error!("Transcript channel send failed: {e}");
