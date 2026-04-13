@@ -30,14 +30,14 @@
           <div class="audio-source-panel" id="audioSourcePanel" hidden></div>
         </div>
         <select id="profileSelect" title="Meeting profile"></select>
+        <div id="vuMeter" class="vu-meter" title="Audio level">
+          <div id="vuMeterBar" class="vu-meter-bar"></div>
+        </div>
         <input type="text" id="meetingTitle" placeholder="Meeting title (optional)" onblur="updateTitle()">
         <button id="btnStart" class="btn btn-primary" onclick="startMeeting()">Start</button>
         <button id="btnPause" class="btn btn-warn" onclick="pauseMeeting()" disabled>Pause</button>
         <button id="btnResume" class="btn btn-primary" onclick="resumeMeeting()" style="display:none">Resume</button>
         <button id="btnStop" class="btn btn-danger" onclick="stopMeeting()" disabled>Stop</button>
-        <div id="vuMeter" class="vu-meter" title="Audio level">
-          <div id="vuMeterBar" class="vu-meter-bar"></div>
-        </div>
       </div>
 
       <div id="meetingError" class="meeting-error"></div>
